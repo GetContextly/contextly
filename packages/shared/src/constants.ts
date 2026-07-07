@@ -10,3 +10,13 @@ export const SOURCES = {
   AGENT_LOGGED: 'agent_logged',
   MANUAL: 'manual',
 } as const;
+
+export const MCP_SERVER_INFO = {
+  NAME: 'contextly-server',
+  VERSION: '0.1.0',
+};
+
+export const CLI_INFO = {
+  NAME: 'contextly',
+  VERSION: '0.1.0',
+};
