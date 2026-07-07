@@ -36,3 +36,4 @@ export * from './role_utils';
 export * from './api_middleware_types';
 export * from './storage_keys';
 export * from './api_client';
+export * from './event_types';
