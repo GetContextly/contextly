@@ -9,3 +9,4 @@ export * from './schemas';
 export * from './api_types';
 export * from './permissions';
 export * from './config_utils';
+export * from './mcp_helpers';
