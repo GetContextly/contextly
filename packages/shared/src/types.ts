@@ -27,3 +27,22 @@ export interface Change {
   commitSha?: string;
   createdAt: string;
 }
+
+// MCP Tool Types
+export interface GetContextArgs {
+  topic?: string;
+}
+
+export interface ExplainFileArgs {
+  path: string;
+}
+
+export interface RecentChangesArgs {
+  since?: string; // ISO date string
+}
+
+export interface LogDecisionArgs {
+  summary: string;
+  reasoning?: string;
+  relatedFiles?: string[];
+}
