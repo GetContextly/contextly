@@ -39,3 +39,4 @@ export * from './api_client';
 export * from './event_types';
 export * from './mcp_schemas';
 export * from './utils';
+export * from './config_types';
