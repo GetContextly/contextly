@@ -36,6 +36,13 @@ export interface Change {
   createdAt: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
 // MCP Tool Types
 export interface GetContextArgs {
   topic?: string;
