@@ -25,3 +25,4 @@ export * from './api_utils';
 export * from './request_utils';
 export * from './string_utils';
 export * from './object_utils';
+export * from './array_utils';
