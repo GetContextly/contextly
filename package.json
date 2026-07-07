@@ -5,6 +5,14 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "supabase:login": "supabase login",
+    "supabase:init": "supabase init",
+    "supabase:migration": "supabase migration new",
+    "supabase:reset": "supabase db reset",
+    "supabase:push": "supabase db push",
+    "vercel:login": "vercel login",
+    "vercel:deploy": "vercel deploy --prefix packages/dashboard",
+    "render:login": "render login"
   }
 }
