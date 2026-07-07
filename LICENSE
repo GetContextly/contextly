@@ -1,0 +1,32 @@
+Copyright (c) 2026 Daniel Oluwadare / Contextly. All rights reserved.
+
+This software and associated documentation files (the "Software") are proprietary
+and confidential. Unauthorized copying, modification, distribution, or use of this
+Software, via any medium, is strictly prohibited without the express prior written
+permission of the copyright holder.
+
+No license, express or implied, to any intellectual property rights is granted by
+this document.
+
+---
+
+NOTE TO SELF — read before finalizing:
+
+This is a strict "all rights reserved" proprietary license, appropriate if Contextly
+stays fully closed-source. Two other options worth considering once the direction
+is clearer:
+
+1. Business Source License (BSL) — source-available (anyone can read/audit the
+   code) but not free to run as a competing commercial service until a set future
+   date, after which it converts to a fully open license. This is the model
+   context-mode (a similar/competing project) uses. Consider this if you want
+   the trust and community benefit of visible source code without giving away
+   your commercial advantage immediately.
+
+2. MIT/Apache 2.0 (fully open source) — only makes sense if the actual business
+   model is hosting/support/enterprise features rather than the core software
+   itself, similar to how some dev tools monetize.
+
+Decide this deliberately once you're closer to public launch — don't leave the
+strict proprietary default in place by accident if the real intention is
+source-available.
