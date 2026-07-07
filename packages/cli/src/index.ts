@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { scanDirectory } from './scanner';
 import fs from 'fs';
 import path from 'path';
+import { ensureDir, writeJson } from './utils';
 
 const program = new Command();
 
