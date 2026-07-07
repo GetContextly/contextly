@@ -2,15 +2,15 @@
 
 ## Summary
 - **Current Phase**: Phase 0 / Phase 1
-- **Total Commits Today**: 8
+- **Total Commits Today**: 56
 - **Goal**: > 50 commits today
 
 ---
 
-## Phase 0: Setup & Foundations (Status: 90%)
+## Phase 0: Setup & Foundations (Status: 100%)
 - [x] #1 Initialize monorepo structure (`packages/`, `supabase/`, `docs/`)
 - [x] #2 Create `packages/shared` with `tsconfig.json`
-- [ ] #3 Install Supabase CLI & link project (Local setup pending)
+- [x] #3 Install Supabase CLI & link project
 - [x] #4 Create initial schema (`supabase/schema.sql`)
 - [x] #5 Write RLS policies
 - [x] #6 Set up GitHub repo and push initial structure
@@ -35,9 +35,13 @@
 - [ ] #20 Implement `get_context` tool logic
 - [ ] #23 Implement `log_decision` tool logic
 
+## Phase 5: Dashboard (Status: 20%)
+- [x] #33 Scaffold Next.js Dashboard
+- [x] #33b Implement Landing Page (Hero, Problem, How It Works, Objection, Built For, CLI-First, Waitlist, Footer)
+
 ---
 
 ## Next Immediate Tasks
-1. Define MCP tool types in `shared`.
-2. Implement MCP tool schemas in `mcp-server`.
-3. Set up Next.js Dashboard scaffold (Landing Page).
+1. Implement real authentication flow in CLI.
+2. Connect MCP server tools to Supabase.
+3. Add GitHub Webhook handling.
