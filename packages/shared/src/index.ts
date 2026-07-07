@@ -60,3 +60,4 @@ export * from './api_loading_utils';
 export * from './api_path_utils';
 export * from './api_request_types';
 export * from './api_base_client';
+export * from './api_error_utils';
