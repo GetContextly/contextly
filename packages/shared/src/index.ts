@@ -27,3 +27,4 @@ export * from './string_utils';
 export * from './object_utils';
 export * from './array_utils';
 export * from './promise_utils';
+export * from './logging';
