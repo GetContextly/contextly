@@ -11,3 +11,8 @@ export const ProjectConfigSchema = z.object({
   name: z.string(),
   updatedAt: z.string().datetime(),
 });
+
+export const MCPConfigSchema = z.object({
+  mcpToken: z.string(),
+  projectId: z.string().uuid(),
+});
