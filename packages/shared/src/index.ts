@@ -24,3 +24,4 @@ export * from './date_utils';
 export * from './api_utils';
 export * from './request_utils';
 export * from './string_utils';
+export * from './object_utils';
