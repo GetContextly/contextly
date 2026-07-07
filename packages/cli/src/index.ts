@@ -5,13 +5,14 @@ import { scanDirectory } from './scanner';
 import fs from 'fs';
 import path from 'path';
 import { ensureDir, writeJson } from './utils';
+import { CLI_INFO } from '@contextly/shared';
 
 const program = new Command();
 
 program
-  .name('contextly')
+  .name(CLI_INFO.NAME)
   .description('CLI to manage your project context')
-  .version('0.1.0');
+  .version(CLI_INFO.VERSION);
 
 program
   .command('init')
