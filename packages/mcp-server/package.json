@@ -1,0 +1,19 @@
+{
+  "name": "@contextly/mcp-server",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "@supabase/supabase-js": "^2.45.4",
+    "zod": "^3.23.8",
+    "@contextly/shared": "*"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
