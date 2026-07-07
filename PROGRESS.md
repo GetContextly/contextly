@@ -16,21 +16,23 @@
 - [x] #6 Set up GitHub repo and push initial structure
 - [x] #6b Create `.gitignore`
 
-## Phase 1: Shared Types (Status: 50%)
+## Phase 1: Shared Types (Status: 100%)
 - [x] #7 Define `Project`, `Decision`, `Change`, `ProjectMember` types
-- [ ] #8 Define MCP tool input/output types
-- [ ] #9 Define Supabase client wrapper
+- [x] #8 Define MCP tool input/output types
+- [x] #9 Define Supabase client wrapper
 
-## Phase 2: CLI Core (Status: 10%)
+## Phase 2: CLI Core (Status: 15%)
 - [x] #10 Scaffold CLI with `commander`
 - [ ] #11 Implement `login` command
 - [ ] #12 Repo scanning logic
 - [ ] #13 `init` command
 
-## Phase 3: MCP Server (Status: 10%)
+## Phase 3: MCP Server (Status: 30%)
 - [x] #18 Scaffold MCP server
-- [ ] #20 Implement `get_context` tool
-- [ ] #23 Implement `log_decision` tool
+- [x] #18b Implement tool definitions (get_context, explain_file, recent_changes, log_decision)
+- [x] #18c Implement request handler skeleton
+- [ ] #20 Implement `get_context` tool logic
+- [ ] #23 Implement `log_decision` tool logic
 
 ---
 
