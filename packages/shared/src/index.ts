@@ -41,3 +41,4 @@ export * from './mcp_schemas';
 export * from './utils';
 export * from './config_types';
 export * from './api_base';
+export * from './api_headers';
