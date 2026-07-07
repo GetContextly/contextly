@@ -45,7 +45,25 @@ program
   .command('auth')
   .description('Authenticate with Contextly')
   .action(() => {
-    console.log(chalk.blue('Authenticating...'));
+    console.log(chalk.blue('🔒 Authenticating...'));
+    console.log(chalk.yellow('Device flow or browser redirect would happen here.'));
+    // Mock successful login for now
+    const mockSession = {
+      accessToken: 'mock_token_' + Math.random().toString(36).substring(7),
+      user: { id: 'mock_user_id', email: 'user@example.com' }
+    };
+    const { saveSession } = require('./auth');
+    saveSession(mockSession);
+    console.log(chalk.green('✅ Successfully authenticated as user@example.com'));
+  });
+
+program
+  .command('logout')
+  .description('Log out from Contextly')
+  .action(() => {
+    const { clearSession } = require('./auth');
+    clearSession();
+    console.log(chalk.green('✅ Logged out successfully.'));
   });
 
 program.parse();
