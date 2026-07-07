@@ -58,3 +58,4 @@ export * from './api_retry_utils';
 export * from './api_cache_utils';
 export * from './api_loading_utils';
 export * from './api_path_utils';
+export * from './api_request_types';
