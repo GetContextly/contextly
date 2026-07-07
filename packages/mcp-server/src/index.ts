@@ -6,12 +6,18 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-import { GetContextArgs, ExplainFileArgs, RecentChangesArgs, LogDecisionArgs } from "@contextly/shared";
+import {
+  GetContextArgs,
+  ExplainFileArgs,
+  RecentChangesArgs,
+  LogDecisionArgs,
+  MCP_SERVER_INFO
+} from "@contextly/shared";
 
 const server = new Server(
   {
-    name: "contextly-server",
-    version: "0.1.0",
+    name: MCP_SERVER_INFO.NAME,
+    version: MCP_SERVER_INFO.VERSION,
   },
   {
     capabilities: {
