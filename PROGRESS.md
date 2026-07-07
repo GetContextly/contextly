@@ -21,11 +21,12 @@
 - [x] #8 Define MCP tool input/output types
 - [x] #9 Define Supabase client wrapper
 
-## Phase 2: CLI Core (Status: 40%)
+## Phase 2: CLI Core (Status: 60%)
 - [x] #10 Scaffold CLI with `commander`
-- [ ] #11 Implement `login` command
+- [x] #11 Implement `login` / `auth` command (Mock)
+- [x] #11b Implement `logout` command
 - [x] #12 Repo scanning logic
-- [x] #13 `init` command
+- [x] #13 `init` command (v1)
 
 ## Phase 3: MCP Server (Status: 30%)
 - [x] #18 Scaffold MCP server
