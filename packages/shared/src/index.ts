@@ -55,3 +55,4 @@ export * from './api_abort_utils';
 export * from './api_cache_types';
 export * from './api_interceptors';
 export * from './api_retry_utils';
+export * from './api_cache_utils';
