@@ -77,6 +77,11 @@ CREATE POLICY "Users can view projects they are members of"
     ON public.projects FOR SELECT
     USING (public.has_project_access(id, auth.uid()));
 
+-- Policies for project_members
+CREATE POLICY "Users can view project members of their projects"
+    ON public.project_members FOR SELECT
+    USING (public.has_project_access(project_id, auth.uid()));
+
 -- Policies for decisions
 CREATE POLICY "Users can view decisions for their projects"
     ON public.decisions FOR SELECT
@@ -92,3 +97,36 @@ CREATE POLICY "Owners and members can insert decisions"
             AND role IN ('owner', 'member')
         )
     );
+
+-- Policies for changes
+CREATE POLICY "Users can view changes for their projects"
+    ON public.changes FOR SELECT
+    USING (public.has_project_access(project_id, auth.uid()));
+
+CREATE POLICY "Owners and members can insert changes"
+    ON public.changes FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.project_members
+            WHERE project_id = changes.project_id
+            AND user_id = auth.uid()
+            AND role IN ('owner', 'member')
+        )
+    );
+
+-- Policies for agent_sessions
+CREATE POLICY "Users can view agent sessions for their projects"
+    ON public.agent_sessions FOR SELECT
+    USING (public.has_project_access(project_id, auth.uid()));
+
+-- Triggers for updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects
+    FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
