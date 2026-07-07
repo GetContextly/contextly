@@ -1,0 +1,20 @@
+{
+  "name": "@contextly/cli",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "bin": {
+    "contextly": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "chalk": "^4.1.2",
+    "@contextly/shared": "*"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
