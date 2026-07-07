@@ -10,6 +10,14 @@ export interface Project {
   updatedAt: string;
 }
 
+export interface ProjectMember {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: ProjectRole;
+  createdAt: string;
+}
+
 export interface Decision {
   id: string;
   projectId: string;
