@@ -5,14 +5,14 @@ import CircularGallery from './CircularGallery';
 
 export const SupportedAgents = () => {
   const agents = [
-    { image: 'https://placehold.co/800x600/12141C/34FFB3?text=Claude+Code', text: 'Claude Code' },
-    { image: 'https://placehold.co/800x600/12141C/34FFB3?text=GitHub+Copilot', text: 'Copilot' },
-    { image: 'https://placehold.co/800x600/12141C/34FFB3?text=Cursor', text: 'Cursor' },
-    { image: 'https://placehold.co/800x600/12141C/34FFB3?text=Windsurf', text: 'Windsurf' },
+    { image: 'https://svgl.app/library/claude.svg', text: 'Claude Code' },
+    { image: 'https://svgl.app/library/cursor.svg', text: 'Cursor' },
+    { image: 'https://svgl.app/library/github-copilot.svg', text: 'Copilot' },
+    { image: 'https://svgl.app/library/codeium.svg', text: 'Windsurf' },
+    { image: 'https://svgl.app/library/zed.svg', text: 'Zed' },
+    { image: 'https://svgl.app/library/sourcegraph.svg', text: 'Cody' },
     { image: 'https://placehold.co/800x600/12141C/34FFB3?text=Aider', text: 'Aider' },
-    { image: 'https://placehold.co/800x600/12141C/34FFB3?text=Codex', text: 'Codex' },
-    { image: 'https://placehold.co/800x600/12141C/34FFB3?text=OpenDevin', text: 'OpenDevin' },
-    { image: 'https://placehold.co/800x600/12141C/34FFB3?text=Tabnine', text: 'Tabnine' },
+    { image: 'https://placehold.co/800x600/12141C/34FFB3?text=Continue', text: 'Continue' },
   ];
 
   return (
