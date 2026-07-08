@@ -2,7 +2,7 @@
 
 ## Summary
 - **Current Phase**: Phase 0 / Phase 1
-- **Total Commits Today**: 56
+- **Total Commits Today**: 57
 - **Goal**: > 50 commits today
 
 ---
@@ -15,6 +15,7 @@
 - [x] #5 Write RLS policies
 - [x] #6 Set up GitHub repo and push initial structure
 - [x] #6b Create `.gitignore`
+- [x] #6c Fix Next.js 16 proxy and build errors
 
 ## Phase 1: Shared Types (Status: 100%)
 - [x] #7 Define `Project`, `Decision`, `Change`, `ProjectMember` types
@@ -35,9 +36,10 @@
 - [ ] #20 Implement `get_context` tool logic
 - [ ] #23 Implement `log_decision` tool logic
 
-## Phase 5: Dashboard (Status: 20%)
+## Phase 5: Dashboard (Status: 30%)
 - [x] #33 Scaffold Next.js Dashboard
 - [x] #33b Implement Landing Page (Hero, Problem, How It Works, Objection, Built For, CLI-First, Waitlist, Footer)
+- [x] #33c Integrate `CircularGallery` for Supported Agents section
 
 ---
 
