@@ -13,7 +13,7 @@ export default function LandingPage() {
   return (
     <main>
       <Hero />
-      {/* <SupportedAgents /> */}
+      <SupportedAgents />
       <Problem />
       <HowItWorks />
       <Objection />
