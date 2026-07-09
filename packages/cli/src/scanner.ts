@@ -1,11 +1,19 @@
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 
 export interface ProjectInfo {
   name: string;
   hasPackageJson: boolean;
   hasGit: boolean;
   structure: string[];
+}
+
+export interface CommitInfo {
+  sha: string;
+  message: string;
+  date: string;
+  author: string;
 }
 
 export const scanDirectory = (dir: string): ProjectInfo => {
@@ -22,4 +30,21 @@ export const scanDirectory = (dir: string): ProjectInfo => {
     hasGit,
     structure: items
   };
+};
+
+export const getRecentCommits = (dir: string, limit = 10): CommitInfo[] => {
+  try {
+    const output = execSync(
+      `git -C "${dir}" log -n ${limit} --pretty=format:"%H|%s|%ai|%an"`,
+      { encoding: 'utf-8' }
+    );
+
+    return output.split('\n').filter(Boolean).map(line => {
+      const [sha, message, date, author] = line.split('|');
+      return { sha, message, date, author };
+    });
+  } catch (error) {
+    console.error('Failed to get git logs:', error);
+    return [];
+  }
 };
