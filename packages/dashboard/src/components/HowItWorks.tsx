@@ -6,209 +6,192 @@ import { motion } from 'framer-motion';
 export const HowItWorks = () => {
   const steps = [
     {
-      number: "01",
-      title: "Run one command",
-      body: "npx contextly init scans your repo and sets up everything automatically."
+      title: "Automated Context Capture",
+      body: "Contextly integrates with your Git workflow. Every commit message, PR description, and architectural change is analyzed and stored.",
+      icon: "⚡"
     },
     {
-      number: "02",
-      title: "It watches quietly",
-      body: "Git commits and merged PRs get captured in the background — no manual docs to maintain."
+      title: "Knowledge Graph Generation",
+      body: "We build a real-time map of your project's decisions. It's not just a file tree; it's the reasoning behind the code.",
+      icon: "◈"
     },
     {
-      number: "03",
-      title: "Any agent connects",
-      body: "Claude Code, Cursor, or whatever you use next reads from the same live brief via MCP."
-    },
-    {
-      number: "04",
-      title: "Switch freely",
-      body: "Change tools, change machines, come back after a week — the context is exactly where you left it."
+      title: "Seamless Agent Sync",
+      body: "Our MCP server acts as the gateway. Any AI agent you use can query Contextly for the ground truth instantly.",
+      icon: "✦"
     }
   ];
 
   return (
     <section className="how-it-works">
       <div className="container">
-        <div className="section-header">
-          <div className="eyebrow">How it works</div>
-          <h2>One command. Every agent stays current.</h2>
-        </div>
-
-        <div className="steps-container">
-          <div className="connecting-line" />
-          <div className="steps-grid">
-            {steps.map((step, index) => (
-              <motion.div
-                key={index}
-                className="step-item"
-                initial={{ y: 24, opacity: 0 }}
-                whileInView={{ y: 0, opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.12, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <div className="step-number">{step.number}</div>
-                <h3>{step.title}</h3>
-                <p>{step.body}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
         <motion.div
-          className="agent-query-card"
-          initial={{ y: 32, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
+          className="section-header"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8, delay: 0.5 }}
         >
-          <div className="code-line">
-            <span className="prompt">agent{'>'}</span> <span className="method">get_context</span>("<span className="string">authentication</span>")
-          </div>
-          <div className="code-line response">
-            <span className="prompt">contextly{'>'}</span> Using Supabase Auth with GitHub OAuth.
-          </div>
-          <div className="code-line response indent">
-            Switched from custom JWT on Mar 3 —
-          </div>
-          <div className="code-line response indent">
-            see decision #14 for reasoning.
-          </div>
+          <div className="eyebrow">The Architecture</div>
+          <h2 className="heading-m text-gradient">Built for speed, <br />designed for depth.</h2>
         </motion.div>
+
+        <div className="steps-visual">
+          {steps.map((step, index) => (
+            <motion.div
+              key={index}
+              className="step-card"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: index * 0.2 }}
+            >
+              <div className="step-icon">{step.icon}</div>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+
+              {index < steps.length - 1 && (
+                <div className="connector">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="rgba(255,255,255,0.1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="tech-details">
+          <div className="detail-item">
+            <span className="label">Protocol</span>
+            <span className="value">MCP / JSON-RPC</span>
+          </div>
+          <div className="detail-item">
+            <span className="label">Latency</span>
+            <span className="value">{'<'} 50ms</span>
+          </div>
+          <div className="detail-item">
+            <span className="label">Privacy</span>
+            <span className="value">Encrypted at Rest</span>
+          </div>
+        </div>
       </div>
 
       <style jsx>{`
         .how-it-works {
-          padding: 120px 0;
-          background: #0A0B0F;
+          padding: 160px 0;
+          background: #0D0E13;
+          position: relative;
         }
 
         .section-header {
           text-align: center;
-          margin-bottom: 80px;
+          margin-bottom: 100px;
         }
 
         .eyebrow {
           color: #34FFB3;
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 12px;
+          font-family: var(--font-mono);
+          font-size: 11px;
           text-transform: uppercase;
-        }
-
-        h2 {
-          font-size: clamp(1.75rem, 4vw, 2.5rem);
-          font-weight: 600;
-          color: white;
-          margin-top: 12px;
-        }
-
-        .steps-container {
-          position: relative;
-          margin-bottom: 80px;
-        }
-
-        .connecting-line {
-          position: absolute;
-          top: 24px;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: repeating-linear-gradient(90deg, rgba(255,255,255,0.15) 0, rgba(255,255,255,0.15) 8px, transparent 8px, transparent 16px);
-          z-index: 0;
-        }
-
-        .steps-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 32px;
-          position: relative;
-          z-index: 1;
-        }
-
-        .step-item {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .step-number {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          border: 1px solid #34FFB3;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #34FFB3;
-          font-size: 14px;
-          font-weight: 600;
-          background: #0A0B0F;
+          letter-spacing: 0.15em;
           margin-bottom: 24px;
         }
 
+        .steps-visual {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 40px;
+          margin-bottom: 100px;
+        }
+
+        .step-card {
+          position: relative;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          padding: 40px;
+          border-radius: 24px;
+          transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .step-card:hover {
+          transform: translateY(-5px);
+          border-color: rgba(52, 255, 179, 0.2);
+        }
+
+        .step-icon {
+          width: 50px;
+          height: 50px;
+          background: rgba(52, 255, 179, 0.1);
+          color: #34FFB3;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 24px;
+          border-radius: 12px;
+          margin-bottom: 30px;
+        }
+
         h3 {
-          font-size: 17px;
+          font-size: 1.25rem;
           font-weight: 600;
           color: white;
-          margin-bottom: 12px;
+          margin-bottom: 16px;
         }
 
         p {
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.6);
+          font-size: 1rem;
           line-height: 1.6;
+          color: rgba(255, 255, 255, 0.4);
         }
 
-        .agent-query-card {
-          background: #0D0E13;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 12px;
-          padding: 32px;
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 13px;
-          max-width: 600px;
-          margin: 0 auto;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        .connector {
+          position: absolute;
+          top: 50%;
+          right: -32px;
+          transform: translateY(-50%);
+          z-index: 2;
         }
 
-        .code-line {
-          margin-bottom: 8px;
+        .tech-details {
+          display: flex;
+          justify-content: center;
+          gap: 60px;
+          padding: 40px;
+          border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-item {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.3);
+          letter-spacing: 0.1em;
+        }
+
+        .value {
+          font-size: 1.1rem;
+          font-weight: 600;
           color: white;
         }
 
-        .prompt {
-          color: #34FFB3;
-        }
-
-        .method {
-          color: #7C8CFF;
-        }
-
-        .string {
-          color: #34FFB3;
-          opacity: 0.8;
-        }
-
-        .response {
-          color: rgba(255, 255, 255, 0.8);
-        }
-
-        .indent {
-          padding-left: 88px;
-        }
-
-        @media (max-width: 768px) {
-          .steps-grid {
+        @media (max-width: 1024px) {
+          .steps-visual {
             grid-template-columns: 1fr;
-            gap: 48px;
           }
-          .connecting-line {
+          .connector {
             display: none;
           }
-          .indent {
-            padding-left: 0;
-          }
-          .how-it-works {
-            padding: 80px 0;
+          .tech-details {
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+            text-align: center;
           }
         }
       `}</style>

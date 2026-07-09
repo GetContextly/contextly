@@ -2,6 +2,7 @@
 
 import React from 'react';
 import CircularGallery from './CircularGallery';
+import { motion } from 'framer-motion';
 
 export const SupportedAgents = () => {
   const agents = [
@@ -18,13 +19,15 @@ export const SupportedAgents = () => {
   return (
     <section className="agents-section">
       <div className="container">
-        <div className="header">
-          <h2 className="title">Universal Context for All Agents</h2>
-          <p className="description">
-            Contextly provides a unified source of truth for every AI agent you use.
-            No more manual re-indexing or explanation loops.
-          </p>
-        </div>
+        <motion.div
+          className="header"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <div className="eyebrow">Universal Connectivity</div>
+          <h2 className="heading-m text-gradient">One Source of Truth <br />for Every Agent.</h2>
+        </motion.div>
 
         <div className="gallery-container">
           <CircularGallery
@@ -41,25 +44,21 @@ export const SupportedAgents = () => {
           padding: 100px 0;
           background: #0A0B0F;
           border-top: 1px solid rgba(255, 255, 255, 0.05);
+          position: relative;
         }
 
         .header {
           text-align: center;
-          margin-bottom: 60px;
+          margin-bottom: 80px;
         }
 
-        .title {
-          font-size: clamp(2rem, 5vw, 3rem);
-          font-weight: 700;
-          margin-bottom: 20px;
-          color: white;
-        }
-
-        .description {
-          font-size: 18px;
-          color: rgba(255, 255, 255, 0.6);
-          max-width: 600px;
-          margin: 0 auto;
+        .eyebrow {
+          color: #34FFB3;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.15em;
+          margin-bottom: 24px;
         }
 
         .gallery-container {

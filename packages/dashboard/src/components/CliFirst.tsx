@@ -1,186 +1,189 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
 
 export const CliFirst = () => {
-  const [displayText, setDisplayText] = useState('');
-  const fullText = [
-    '$ npx contextly init',
-    '$ contextly login',
-    '$ git commit -m "switch auth --context"',
-    '$ contextly sync'
-  ];
-
-  useEffect(() => {
-    let currentLine = 0;
-    let currentChar = 0;
-    let timeout: NodeJS.Timeout;
-
-    const type = () => {
-      if (currentLine < fullText.length) {
-        if (currentChar < fullText[currentLine].length) {
-          setDisplayText(prev => prev + fullText[currentLine][currentChar]);
-          currentChar++;
-          timeout = setTimeout(type, 30);
-        } else {
-          setDisplayText(prev => prev + '\n');
-          currentLine++;
-          currentChar = 0;
-          timeout = setTimeout(type, 500);
-        }
-      }
-    };
-
-    timeout = setTimeout(type, 1000);
-    return () => clearTimeout(timeout);
-  }, []);
-
   return (
     <section className="cli-first">
       <div className="container">
-        <div className="cli-grid">
+        <div className="cli-layout">
           <motion.div
-            className="terminal-column"
-            initial={{ x: -20, opacity: 0 }}
-            whileInView={{ x: 0, opacity: 1 }}
+            className="cli-text"
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <div className="terminal-window">
-              <div className="terminal-header">
-                <div className="dot red" />
-                <div className="dot yellow" />
-                <div className="dot green" />
+            <div className="eyebrow">Developer Experience</div>
+            <h2 className="heading-m text-gradient">The CLI-first <br />source of truth.</h2>
+            <p>We believe context belongs where the code is. Our CLI is designed to be the primary interface, while the dashboard handles the high-level oversight.</p>
+
+            <div className="feature-list">
+              <div className="feature">
+                <span className="bullet">⚡</span>
+                <div>
+                  <h4>Zero Config Init</h4>
+                  <p>Scan your repo and generate a baseline context in seconds.</p>
+                </div>
               </div>
-              <div className="terminal-body">
-                <pre>{displayText}</pre>
+              <div className="feature">
+                <span className="bullet">✦</span>
+                <div>
+                  <h4>Contextual Logging</h4>
+                  <p>Log decisions directly from your terminal as you make them.</p>
+                </div>
               </div>
             </div>
           </motion.div>
 
           <motion.div
-            className="text-column"
-            initial={{ y: 20, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
+            className="cli-visual"
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.2 }}
+            transition={{ duration: 1 }}
           >
-            <div className="eyebrow">Built for the terminal</div>
-            <h2>Everything that matters happens without opening a browser.</h2>
-            <p className="description">
-              Setup, syncing, logging decisions, connecting agents — all CLI. The dashboard exists for the few things a terminal genuinely does worse: managing team access, billing, and exporting context.
-            </p>
-
-            <ul className="benefit-list">
-              <li><Check size={16} color="#34FFB3" /> <span>One command to set up</span></li>
-              <li><Check size={16} color="#34FFB3" /> <span>No dashboard required for daily use</span></li>
-              <li><Check size={16} color="#34FFB3" /> <span>Works exactly where you already are</span></li>
-            </ul>
+            <div className="terminal-preview">
+              <div className="t-head">
+                <span className="t-user">guest@contextly</span>
+                <span className="t-path">~/project</span>
+              </div>
+              <div className="t-body">
+                <div className="t-in">contextly log "Switched to Tailwind v4"</div>
+                <div className="t-out">
+                  <span className="t-s">✓</span> Decision captured.<br />
+                  <span className="t-s">✓</span> Synced to 3 active agent sessions.<br />
+                  <span className="t-s">✓</span> Broadcasted to team.
+                </div>
+                <div className="t-in">contextly status</div>
+                <div className="t-out">
+                  Project: <span className="t-h">Contextly Dashboard</span><br />
+                  Health: <span className="t-s">Optimal</span><br />
+                  Last Sync: <span className="t-h">2 minutes ago</span>
+                </div>
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>
 
       <style jsx>{`
         .cli-first {
-          padding: 120px 0;
-          background: #0A0B0F;
-        }
-
-        .cli-grid {
-          display: grid;
-          grid-template-columns: 1.2fr 1fr;
-          gap: 64px;
-          align-items: center;
-        }
-
-        .terminal-window {
+          padding: 160px 0;
           background: #0D0E13;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+          border-top: 1px solid rgba(255, 255, 255, 0.03);
         }
 
-        .terminal-header {
-          background: rgba(255, 255, 255, 0.03);
-          padding: 12px 16px;
-          display: flex;
-          gap: 8px;
-        }
-
-        .dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          opacity: 0.3;
-        }
-        .red { background: #ff5f56; }
-        .yellow { background: #ffbd2e; }
-        .green { background: #27c93f; }
-
-        .terminal-body {
-          padding: 24px;
-          min-height: 200px;
-        }
-
-        pre {
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 13px;
-          color: white;
-          white-space: pre-wrap;
-          line-height: 1.6;
+        .cli-layout {
+          display: grid;
+          grid-template-columns: 1fr 1.2fr;
+          gap: 100px;
+          align-items: center;
         }
 
         .eyebrow {
           color: #34FFB3;
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 12px;
+          font-family: var(--font-mono);
+          font-size: 11px;
           text-transform: uppercase;
+          letter-spacing: 0.15em;
+          margin-bottom: 24px;
+        }
+
+        .cli-text p {
+          font-size: 1.15rem;
+          color: rgba(255, 255, 255, 0.5);
+          line-height: 1.6;
+          margin-bottom: 48px;
+        }
+
+        .feature-list {
+          display: flex;
+          flex-direction: column;
+          gap: 40px;
+        }
+
+        .feature {
+          display: flex;
+          gap: 20px;
+        }
+
+        .bullet {
+          font-size: 20px;
+          color: #34FFB3;
+        }
+
+        .feature h4 {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: white;
+          margin-bottom: 8px;
+        }
+
+        .feature p {
+          font-size: 0.95rem;
+          margin-bottom: 0;
+        }
+
+        .cli-visual {
+          position: relative;
+        }
+
+        .terminal-preview {
+          background: #000;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 0;
+          box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+          overflow: hidden;
+        }
+
+        .t-head {
+          background: rgba(255, 255, 255, 0.05);
+          padding: 12px 20px;
+          display: flex;
+          gap: 20px;
+          font-family: var(--font-mono);
+          font-size: 11px;
+        }
+
+        .t-user { color: #34FFB3; }
+        .t-path { color: rgba(255, 255, 255, 0.3); }
+
+        .t-body {
+          padding: 30px;
+          font-family: var(--font-mono);
+          font-size: 13px;
+          line-height: 1.8;
+          color: white;
+        }
+
+        .t-in {
+          position: relative;
+          padding-left: 20px;
           margin-bottom: 12px;
         }
 
-        h2 {
-          font-size: clamp(1.5rem, 3.5vw, 2rem);
-          font-weight: 600;
-          color: white;
+        .t-in::before {
+          content: ">";
+          position: absolute;
+          left: 0;
+          color: #34FFB3;
+        }
+
+        .t-out {
+          color: rgba(255, 255, 255, 0.4);
           margin-bottom: 24px;
-          line-height: 1.2;
         }
 
-        .description {
-          font-size: 16px;
-          color: rgba(255, 255, 255, 0.65);
-          line-height: 1.6;
-          margin-bottom: 32px;
-        }
+        .t-s { color: #34FFB3; }
+        .t-h { color: #7C8CFF; }
 
-        .benefit-list {
-          list-style: none;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .benefit-list li {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          font-size: 14px;
-          color: white;
-        }
-
-        @media (max-width: 768px) {
-          .cli-grid {
+        @media (max-width: 1024px) {
+          .cli-layout {
             grid-template-columns: 1fr;
-            gap: 48px;
-          }
-          .text-column {
-            order: -1;
-          }
-          pre {
-            font-size: 11px;
+            gap: 60px;
           }
         }
       `}</style>

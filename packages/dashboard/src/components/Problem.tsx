@@ -2,118 +2,158 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, FileX, Users } from 'lucide-react';
 
 export const Problem = () => {
   const cards = [
     {
-      icon: <RotateCcw size={24} color="#34FFB3" />,
-      title: "Hit a limit, lose the thread",
-      body: "You hit a usage cap mid-task, switch tools, and have to re-explain your entire architecture from scratch."
+      title: "The Explainer's Loop",
+      body: "Every time you open a new chat or switch from Claude to Cursor, you spend 5 minutes copying snippets and explaining 'No, we use Supabase, not Firebase.'",
+      tag: "Time Sink"
     },
     {
-      icon: <FileX size={24} color="#7C8CFF" />,
-      title: "Docs go stale in days",
-      body: "A README you write once is out of date by the next sprint — nobody keeps it maintained."
+      title: "Context Decay",
+      body: "Your README says one thing, your current branch says another. AI agents hallucinate because they're reading stale documentation from 3 weeks ago.",
+      tag: "Stale Data"
     },
     {
-      icon: <Users size={24} color="#34FFB3" />,
-      title: "Every tool sees something different",
-      body: "Your team uses Claude Code, Cursor, Copilot — each with its own picture of the codebase, so output stays inconsistent."
+      title: "Fragmented Intent",
+      body: "You decided on a specific architectural pattern yesterday. Today, your agent suggests a completely different approach because it doesn't know why you chose the first one.",
+      tag: "Broken Sync"
     }
   ];
 
   return (
     <section className="problem-section">
       <div className="container">
-        <div className="section-header">
-          <div className="eyebrow">The problem</div>
-          <h2>Every new AI session starts from zero.</h2>
-        </div>
-
-        <div className="problem-grid">
-          {cards.map((card, index) => (
+        <div className="section-grid">
+          <div className="text-content">
             <motion.div
-              key={index}
-              className="problem-card"
-              initial={{ y: 24, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
+              className="eyebrow"
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
             >
-              <div className="icon-wrapper">{card.icon}</div>
-              <h3>{card.title}</h3>
-              <p>{card.body}</p>
+              The Status Quo
             </motion.div>
-          ))}
+            <motion.h2
+              className="heading-m text-gradient"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+            >
+              Why AI coding feels <br />
+              <span className="accent">like a chore.</span>
+            </motion.h2>
+          </div>
+
+          <div className="cards-stack">
+            {cards.map((card, index) => (
+              <motion.div
+                key={index}
+                className="problem-item"
+                initial={{ opacity: 0, x: 40 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+              >
+                <div className="item-header">
+                  <span className="item-tag">{card.tag}</span>
+                  <h3>{card.title}</h3>
+                </div>
+                <p>{card.body}</p>
+                <div className="bottom-border" />
+              </motion.div>
+            ))}
+          </div>
         </div>
       </div>
 
       <style jsx>{`
         .problem-section {
-          padding: 120px 0;
+          padding: 160px 0;
           background: #0A0B0F;
+          border-top: 1px solid rgba(255, 255, 255, 0.03);
+          position: relative;
         }
 
-        .section-header {
-          text-align: center;
-          margin-bottom: 64px;
+        .section-grid {
+          display: grid;
+          grid-template-columns: 1fr 1.2fr;
+          gap: 80px;
+          align-items: start;
         }
 
         .eyebrow {
           color: #34FFB3;
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 12px;
+          font-family: var(--font-mono);
+          font-size: 11px;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
-          margin-bottom: 12px;
-        }
-
-        h2 {
-          font-size: clamp(1.75rem, 4vw, 2.5rem);
-          font-weight: 600;
-          color: white;
-        }
-
-        .problem-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 24px;
-        }
-
-        .problem-card {
-          background: #12141C;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
-          padding: 32px;
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-
-        .icon-wrapper {
+          letter-spacing: 0.15em;
           margin-bottom: 24px;
         }
 
+        .accent {
+          color: rgba(255, 255, 255, 0.3);
+        }
+
+        .cards-stack {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .problem-item {
+          padding: 40px 0;
+          position: relative;
+        }
+
+        .problem-item:first-child {
+          padding-top: 0;
+        }
+
+        .item-header {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          margin-bottom: 16px;
+        }
+
+        .item-tag {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: #34FFB3;
+          padding: 4px 10px;
+          border: 1px solid rgba(52, 255, 179, 0.2);
+          border-radius: 4px;
+          text-transform: uppercase;
+        }
+
         h3 {
-          font-size: 17px;
+          font-size: 1.5rem;
           font-weight: 600;
           color: white;
-          margin-bottom: 12px;
         }
 
         p {
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.6);
+          font-size: 1.1rem;
           line-height: 1.6;
+          color: rgba(255, 255, 255, 0.5);
+          max-width: 500px;
         }
 
-        @media (max-width: 768px) {
-          .problem-grid {
+        .bottom-border {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+        }
+
+        @media (max-width: 1024px) {
+          .section-grid {
             grid-template-columns: 1fr;
-          }
-          .problem-section {
-            padding: 80px 0;
+            gap: 60px;
           }
         }
       `}</style>
