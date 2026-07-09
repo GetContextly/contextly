@@ -8,24 +8,33 @@ export const Navbar = () => {
   return (
     <motion.nav
       className="navbar"
-      initial={{ y: -16, opacity: 0 }}
+      initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.8, ease: [0.19, 1, 0.22, 1] }}
     >
       <div className="container nav-content">
         <Link href="/" className="brand">
           <div className="logo-mark">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M4 14C4 14 6 7 10 7C14 7 16 14 16 14" stroke="#34FFB3" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M4 6C4 6 6 13 10 13C14 13 16 6 16 6" stroke="#34FFB3" strokeWidth="2" strokeLinecap="round" opacity="0.5"/>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 4V20M4 12H20" stroke="#34FFB3" strokeWidth="2.5" strokeLinecap="round"/>
+              <circle cx="12" cy="12" r="9" stroke="#34FFB3" strokeWidth="2" strokeDasharray="2 4" opacity="0.5"/>
             </svg>
           </div>
-          <span>Contextly</span>
+          <span className="brand-text">Contextly</span>
         </Link>
 
         <div className="nav-links">
-          <Link href="https://github.com/GetContextly/contextly" className="nav-link">Docs</Link>
-          <button className="waitlist-btn">Join Waitlist</button>
+          <Link href="/docs" className="nav-link">Documentation</Link>
+          <Link href="/changelog" className="nav-link">Changelog</Link>
+          <div className="divider" />
+          <Link href="https://github.com/GetContextly/contextly" className="github-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+            </svg>
+          </Link>
+          <button className="waitlist-btn">
+            Get Started
+          </button>
         </div>
       </div>
 
@@ -35,14 +44,14 @@ export const Navbar = () => {
           top: 0;
           left: 0;
           right: 0;
-          z-index: 50;
-          background: rgba(10, 11, 15, 0.8);
-          backdrop-filter: blur(12px);
+          z-index: 100;
+          background: rgba(10, 11, 15, 0.7);
+          backdrop-filter: blur(20px) saturate(180%);
           border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .nav-content {
-          height: 72px;
+          height: 80px;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -51,27 +60,27 @@ export const Navbar = () => {
         .brand {
           display: flex;
           align-items: center;
-          gap: 10px;
-          font-size: 18px;
-          font-weight: 600;
-          color: white;
+          gap: 12px;
+          text-decoration: none;
         }
 
-        .logo-mark {
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        .brand-text {
+          font-size: 20px;
+          font-weight: 700;
+          color: white;
+          letter-spacing: -0.02em;
         }
 
         .nav-links {
           display: flex;
           align-items: center;
-          gap: 32px;
+          gap: 28px;
         }
 
         .nav-link {
           font-size: 14px;
-          color: rgba(255, 255, 255, 0.7);
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.6);
           transition: color 0.2s;
         }
 
@@ -79,23 +88,39 @@ export const Navbar = () => {
           color: white;
         }
 
+        .divider {
+          width: 1px;
+          height: 20px;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .github-link {
+          color: rgba(255, 255, 255, 0.6);
+          transition: color 0.2s;
+        }
+
+        .github-link:hover {
+          color: white;
+        }
+
         .waitlist-btn {
-          background: #34FFB3;
+          background: white;
           color: black;
           font-size: 14px;
           font-weight: 600;
-          padding: 10px 20px;
-          border-radius: 999px;
-          transition: transform 0.2s ease;
+          padding: 8px 18px;
+          border-radius: 8px;
+          transition: transform 0.2s, background 0.2s;
         }
 
         .waitlist-btn:hover {
-          transform: scale(1.03);
+          transform: translateY(-1px);
+          background: #34FFB3;
         }
 
         @media (max-width: 768px) {
-          .nav-links {
-            gap: 16px;
+          .nav-link, .divider, .github-link {
+            display: none;
           }
         }
       `}</style>
