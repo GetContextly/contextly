@@ -11,7 +11,7 @@ function isProtected(pathname: string): boolean {
   );
 }
 
-export default function proxy(request: NextRequest): NextResponse {
+export function middleware(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
 
   if (!isProtected(pathname)) {
