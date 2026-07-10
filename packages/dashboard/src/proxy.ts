@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/api/config";
 import { ROUTES } from "@/lib/constants";
 
-const PROTECTED_PREFIXES = [ROUTES.me, ROUTES.admin] as const;
+const PROTECTED_PREFIXES = [ROUTES.me, ROUTES.admin, ROUTES.dashboard] as const;
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
