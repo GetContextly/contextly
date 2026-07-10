@@ -48,3 +48,15 @@ export const getRecentCommits = (dir: string, limit = 10): CommitInfo[] => {
     return [];
   }
 };
+
+export const getRemoteUrl = (dir: string): string | null => {
+  try {
+    const output = execSync(
+      `git -C "${dir}" remote get-url origin`,
+      { encoding: 'utf-8' }
+    );
+    return output.trim();
+  } catch (error) {
+    return null;
+  }
+};

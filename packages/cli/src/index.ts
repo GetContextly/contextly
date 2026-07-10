@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { randomBytes } from 'crypto';
-import { scanDirectory, getRecentCommits } from './scanner';
+import { scanDirectory, getRecentCommits, getRemoteUrl } from './scanner';
 import fs from 'fs';
 import path from 'path';
 import { ensureDir, writeJson, getSupabase } from './utils';
@@ -35,7 +35,12 @@ program
 
       console.log(chalk.green('🔍 Scanning repository...'));
       const info = scanDirectory(process.cwd());
+      const remoteUrl = getRemoteUrl(process.cwd());
+
       console.log(chalk.cyan(`Project Name: ${info.name}`));
+      if (remoteUrl) {
+        console.log(chalk.gray(`Found Remote: ${remoteUrl}`));
+      }
 
       const configDir = path.join(process.cwd(), '.contextly');
       ensureDir(configDir);
@@ -59,6 +64,7 @@ program
           name: info.name,
           mcp_token: mcpToken,
           owner_id: session.user.id,
+          github_repo_url: remoteUrl,
         })
         .select()
         .single();

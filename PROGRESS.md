@@ -41,12 +41,22 @@
 - [x] #22 Implement `recent_changes` tool logic with Supabase
 - [x] #23 Implement `log_decision` tool logic with Supabase
 
-## Phase 5: Dashboard (Status: 70%)
+## Phase 4: Integrations (Status: 40%)
+- [x] #25 Implement GitHub Webhook API route in Dashboard
+- [x] #26 Automated change logging from Webhook `push` events
+- [x] #27 Automated decision logging from Webhook `pull_request` merged events
+- [ ] #28 Discord/Slack notifications for team awareness
+
+## Phase 5: Dashboard (Status: 85%)
 - [x] #33 Scaffold Next.js Dashboard
 - [x] #33b Implement Premium Landing Page Overhaul
 - [x] #33c Integrate `CircularGallery` with CORS-friendly agent logos
 - [x] #33d Resolve Middleware adapterFn and CSS import order errors
 - [x] #33e Setup Supabase JS client and environment variables
+- [x] #34 Implement Dashboard Shell/Layout
+- [x] #35 Implement Projects List view with real-time Supabase fetch
+- [x] #36 Implement Project Detail view (Decisions + Changes)
+- [ ] #37 Settings & GitHub Repo Linking UI
 
 ---
 
