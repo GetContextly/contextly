@@ -14,6 +14,7 @@ export default function DashboardLayout({
         </div>
         <div className="sidebar-links">
           <Link href="/dashboard" className="sidebar-link active">Projects</Link>
+          <Link href="/dashboard/installations" className="sidebar-link">GitHub App</Link>
           <Link href="/dashboard/settings" className="sidebar-link">Settings</Link>
         </div>
         <div className="sidebar-footer">

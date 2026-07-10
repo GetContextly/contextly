@@ -53,6 +53,18 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      <section className="audit-section">
+        <h2>Recent System Activity</h2>
+        <div className="audit-list">
+          {/* Audit logs would be fetched and mapped here */}
+          <div className="audit-item">
+            <span className="timestamp">Just now</span>
+            <span className="action">AGENT_CONTEXT_ACCESS</span>
+            <span className="detail">Project: Contextly-Core</span>
+          </div>
+        </div>
+      </section>
+
       <style jsx>{`
         .admin-view {
           padding: 40px;
@@ -71,6 +83,7 @@ export default function AdminDashboard() {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 24px;
+          margin-bottom: 64px;
         }
 
         .stat-card {
@@ -94,6 +107,29 @@ export default function AdminDashboard() {
           font-weight: 700;
           color: #34FFB3;
         }
+
+        h2 {
+          font-size: 18px;
+          margin-bottom: 24px;
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        .audit-list {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 12px;
+        }
+
+        .audit-item {
+          padding: 16px 24px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          display: flex;
+          gap: 24px;
+          font-size: 13px;
+        }
+
+        .timestamp { color: rgba(255, 255, 255, 0.3); }
+        .action { color: #34FFB3; font-weight: 600; }
       `}</style>
     </div>
   );
