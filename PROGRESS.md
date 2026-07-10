@@ -2,7 +2,7 @@
 
 ## Summary
 - **Current Phase**: Phase 0 / Phase 1
-- **Total Commits Today**: 65
+- **Total Commits Today**: 82
 - **Goal**: > 50 commits today
 
 ---
@@ -41,7 +41,7 @@
 - [x] #22 Implement `recent_changes` tool logic with Supabase
 - [x] #23 Implement `log_decision` tool logic with Supabase
 
-## Phase 4: Integrations (Status: 40%)
+## Phase 4: Integrations (Status: 60%)
 - [x] #25 Implement GitHub Webhook API route in Dashboard
 - [x] #26 Automated change logging from Webhook `push` events
 - [x] #27 Automated decision logging from Webhook `pull_request` merged events
@@ -56,7 +56,9 @@
 - [x] #34 Implement Dashboard Shell/Layout
 - [x] #35 Implement Projects List view with real-time Supabase fetch
 - [x] #36 Implement Project Detail view (Decisions + Changes)
-- [ ] #37 Settings & GitHub Repo Linking UI
+- [x] #37 Settings & GitHub Repo Linking UI
+- [x] #38 Implement Login page with GitHub OAuth
+- [x] #39 Implement Auth Callback & Session management
 
 ---
 

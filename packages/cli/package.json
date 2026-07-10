@@ -7,7 +7,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc -w"
+    "dev": "tsc -w",
+    "test": "vitest run"
   },
   "dependencies": {
     "commander": "^12.1.0",
@@ -15,6 +16,10 @@
     "dotenv": "^16.4.5",
     "@supabase/supabase-js": "^2.45.4",
     "@contextly/shared": "*"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "typescript": "^5"
   },
   "keywords": [],
   "author": "",
