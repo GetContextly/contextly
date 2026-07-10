@@ -38,6 +38,10 @@
   margin: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html,
 body {
   max-width: 100vw;
@@ -76,6 +80,13 @@ body::before {
 }
 
 /* Premium Typography Classes */
+.heading-xl {
+  font-size: clamp(4rem, 10vw, 7rem);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+}
+
 .heading-l {
   font-size: clamp(3rem, 8vw, 5.5rem);
   font-weight: 800;
@@ -94,4 +105,37 @@ body::before {
   background: linear-gradient(180deg, #FFFFFF 0%, rgba(255, 255, 255, 0.7) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* Vanilla CSS animation fallback */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Terminal glow utility — decorative bottom gradient line */
+.terminal-glow {
+  position: relative;
+}
+
+.terminal-glow::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(52, 255, 179, 0.3),
+    transparent
+  );
 }

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" width="1440" height="900">
+  <defs>
+    <radialGradient id="green-glow" cx="15%" cy="85%" r="45%" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="rgba(52,255,179,0.18)"/>
+      <stop offset="100%" stop-color="rgba(52,255,179,0)"/>
+    </radialGradient>
+    <radialGradient id="violet-glow" cx="85%" cy="15%" r="35%" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="rgba(124,140,255,0.10)"/>
+      <stop offset="100%" stop-color="rgba(124,140,255,0)"/>
+    </radialGradient>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
+      <path d="M 60 0 L 60 60 0 60" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="1440" height="900" fill="url(#grid)"/>
+  <rect width="1440" height="900" fill="url(#green-glow)"/>
+  <rect width="1440" height="900" fill="url(#violet-glow)"/>
+</svg>

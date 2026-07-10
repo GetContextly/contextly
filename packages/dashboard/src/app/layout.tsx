@@ -14,8 +14,20 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Contextly | AI Project Memory",
-  description: "Living project memory for AI coding agents.",
+  title: "Contextly — Persistent Memory for AI Coding Agents",
+  description:
+    "Contextly gives Claude Code, Cursor, and GitHub Copilot a living project brief — auto-updated from git — so you never lose context when switching AI tools.",
+  openGraph: {
+    title: "Contextly — Persistent Memory for AI Coding Agents",
+    description:
+      "Contextly gives Claude Code, Cursor, and GitHub Copilot a living project brief — auto-updated from git — so you never lose context when switching AI tools.",
+    images: ["/assets/og-image.svg"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/assets/og-image.svg"],
+  },
 };
 
 export default function RootLayout({
@@ -26,7 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased bg-slate-950`}
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased scroll-smooth`}
     >
       <body className="min-h-full flex flex-col text-white">
         <Navbar />
