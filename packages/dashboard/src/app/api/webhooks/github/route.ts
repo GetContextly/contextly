@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { sanitizeInput } from '@/lib/security';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -9,6 +10,25 @@ const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || '';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for') || 'unknown';
+
+  // RATE LIMITING (CSEC-002) - 100 requests per minute for webhooks
+  const { data: isLimited, error: limitError } = await supabase.rpc('is_rate_limited', {
+    p_key: `github_webhook_${ip}`,
+    p_window_seconds: 60,
+    p_max_requests: 100
+  });
+
+  if (limitError || isLimited) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
+  // PAYLOAD SIZE LIMIT (CSEC-004) - 5MB limit
+  const contentLength = parseInt(req.headers.get('content-length') || '0');
+  if (contentLength > 5 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+  }
+
   const payload = await req.text();
   const signature = req.headers.get('x-hub-signature-256') || '';
 
@@ -134,7 +154,7 @@ async function handlePush(body: GitHubPushEvent) {
   // Log each commit as a change
   const changes = commits.map((commit) => ({
     project_id: project.id,
-    summary: commit.message,
+    summary: sanitizeInput(commit.message),
     commit_sha: commit.id,
     created_at: commit.timestamp,
   }));
@@ -162,8 +182,8 @@ async function handlePullRequest(body: GitHubPullRequestEvent) {
   // Log PR merge as a significant decision/change
   const { error: insertError } = await supabase.from('decisions').insert({
     project_id: project.id,
-    summary: `Merged PR #${pr.number}: ${pr.title}`,
-    reasoning: pr.body || 'No description provided.',
+    summary: sanitizeInput(`Merged PR #${pr.number}: ${pr.title}`),
+    reasoning: sanitizeInput(pr.body || 'No description provided.'),
     source: 'pull_request',
     related_files: [], // Could be populated by fetching PR files via GitHub API
   });

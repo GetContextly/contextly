@@ -14,10 +14,22 @@ function isProtected(pathname: string): boolean {
 export default function middleware(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
 
-  if (!isProtected(pathname)) {
-    return NextResponse.next();
-  }
+  const response = isProtected(pathname)
+    ? handleProtected(request, pathname, search)
+    : NextResponse.next();
 
+  // SECURITY HEADERS (CSEC-001)
+  response.headers.set('X-DNS-Prefetch-Control', 'on');
+  response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  return response;
+}
+
+function handleProtected(request: NextRequest, pathname: string, search: string) {
   const session = request.cookies.get(SESSION_COOKIE);
   if (session?.value) {
     return NextResponse.next();

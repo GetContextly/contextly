@@ -110,7 +110,7 @@ program
 
       allChanges.push({
         project_id: projectId,
-        summary: commit.message,
+        summary: commit.message.substring(0, 1000), // Limit length (CSEC-005)
         commit_sha: commit.sha,
         created_at: new Date(commit.date).toISOString()
       });
@@ -119,10 +119,10 @@ program
       if (decision) {
         allDecisions.push({
           project_id: projectId,
-          summary: decision.summary,
-          reasoning: decision.reasoning,
+          summary: decision.summary.substring(0, 1000), // Limit length
+          reasoning: decision.reasoning.substring(0, 5000), // Limit length
           source: 'git_commit',
-          related_files: decision.relatedFiles,
+          related_files: decision.relatedFiles.slice(0, 100), // Limit file count
           created_at: new Date(commit.date).toISOString()
         });
       }

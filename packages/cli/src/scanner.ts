@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 export interface ProjectInfo {
   name: string;
@@ -34,8 +34,10 @@ export const scanDirectory = (dir: string): ProjectInfo => {
 
 export const getRecentCommits = (dir: string, limit = 10): CommitInfo[] => {
   try {
-    const output = execSync(
-      `git -C "${dir}" log -n ${limit} --pretty=format:"%H|%s|%ai|%an"`,
+    // SECURITY: Use execFileSync to prevent shell injection (CSEC-003)
+    const output = execFileSync(
+      'git',
+      ['-C', dir, 'log', '-n', limit.toString(), '--pretty=format:%H|%s|%ai|%an'],
       { encoding: 'utf-8' }
     );
 
@@ -51,8 +53,9 @@ export const getRecentCommits = (dir: string, limit = 10): CommitInfo[] => {
 
 export const getRemoteUrl = (dir: string): string | null => {
   try {
-    const output = execSync(
-      `git -C "${dir}" remote get-url origin`,
+    const output = execFileSync(
+      'git',
+      ['-C', dir, 'remote', 'get-url', 'origin'],
       { encoding: 'utf-8' }
     );
     return output.trim();

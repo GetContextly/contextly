@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 export interface ArchitecturalDecision {
   summary: string;
@@ -12,9 +12,10 @@ export interface ArchitecturalDecision {
  */
 export const analyzeDiff = (dir: string, sha: string): ArchitecturalDecision | null => {
   try {
-    const diff = execSync(`git -C "${dir}" show ${sha}`, { encoding: 'utf-8' });
-    const stats = execSync(`git -C "${dir}" show ${sha} --stat`, { encoding: 'utf-8' });
-    const message = execSync(`git -C "${dir}" log -1 --pretty=%B ${sha}`, { encoding: 'utf-8' });
+    // SECURITY: Use execFileSync with array of args to prevent shell injection (CSEC-003)
+    const diff = execFileSync('git', ['-C', dir, 'show', sha], { encoding: 'utf-8' });
+    const stats = execFileSync('git', ['-C', dir, 'show', sha, '--stat'], { encoding: 'utf-8' });
+    const message = execFileSync('git', ['-C', dir, 'log', '-1', '--pretty=%B', sha], { encoding: 'utf-8' });
 
     // HEURISTIC: Check if this commit looks like an architectural decision
     // In a real version, we'd use a local LLM or a sophisticated regex engine.

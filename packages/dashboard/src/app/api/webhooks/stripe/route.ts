@@ -6,6 +6,25 @@ import Stripe from 'stripe';
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for') || 'unknown';
+
+  // RATE LIMITING (CSEC-002)
+  const { data: isLimited } = await supabase.rpc('is_rate_limited', {
+    p_key: `stripe_webhook_${ip}`,
+    p_window_seconds: 60,
+    p_max_requests: 100
+  });
+
+  if (isLimited) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
+  // PAYLOAD SIZE LIMIT (CSEC-004)
+  const contentLength = parseInt(req.headers.get('content-length') || '0');
+  if (contentLength > 5 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+  }
+
   const body = await req.text();
   const sig = req.headers.get('stripe-signature');
 
