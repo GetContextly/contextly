@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { supabase } from '@/lib/supabase';
+import { escape } from 'lodash'; // Assuming lodash for simple escaping
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, name } = await req.json();
+    // SECURITY: Only allow authenticated users to trigger welcome emails for themselves
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { name } = await req.json();
+    const email = user.email; // Use verified email from auth session
+
+    if (!email) {
+      return NextResponse.json({ error: 'User email not found' }, { status: 400 });
+    }
+
+    // SANITIZATION: Escape user-provided content to prevent XSS in email clients
+    const safeName = escape(name || 'Developer');
 
     const { data, error } = await resend.emails.send({
       from: 'Contextly <welcome@getcontextly.dev>',
@@ -13,7 +30,7 @@ export async function POST(req: NextRequest) {
       subject: 'Welcome to Contextly ◈',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background: #06070a; color: white; border-radius: 20px;">
-          <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Welcome to the context layer, ${name}.</h1>
+          <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Welcome to the context layer, ${safeName}.</h1>
           <p style="color: rgba(255,255,255,0.6); line-height: 1.6; margin-bottom: 30px;">
             You've successfully joined Contextly. Your AI agents are about to get a lot smarter.
           </p>

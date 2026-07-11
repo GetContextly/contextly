@@ -3,6 +3,19 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Profiles table (Linked to auth.users)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    full_name TEXT,
+    avatar_url TEXT,
+    stripe_customer_id TEXT UNIQUE,
+    stripe_subscription_id TEXT UNIQUE,
+    subscription_status TEXT CHECK (subscription_status IN ('active', 'trialing', 'canceled', 'incomplete', 'past_due')),
+    plan_type TEXT DEFAULT 'free',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Projects table
 CREATE TABLE IF NOT EXISTS public.projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -41,25 +54,17 @@ CREATE TABLE IF NOT EXISTS public.changes (
     project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
     summary TEXT NOT NULL,
     commit_sha TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Agent Sessions
-CREATE TABLE IF NOT EXISTS public.agent_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-    agent_type TEXT,
-    connected_at TIMESTAMPTZ DEFAULT NOW(),
-    last_sync_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(project_id, commit_sha)
 );
 
 -- Row Level Security (RLS)
 
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.decisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.changes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.agent_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to check project access
 CREATE OR REPLACE FUNCTION public.has_project_access(p_project_id UUID, p_user_id UUID)
@@ -72,6 +77,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Policies for profiles
+CREATE POLICY "Users can view their own profile"
+    ON public.profiles FOR SELECT
+    USING (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile"
+    ON public.profiles FOR UPDATE
+    USING (auth.uid() = id);
+
 -- Policies for projects
 CREATE POLICY "Users can view projects they are members of"
     ON public.projects FOR SELECT
@@ -81,7 +95,20 @@ CREATE POLICY "Authenticated users can create projects"
     ON public.projects FOR INSERT
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Trigger to auto-add owner to project_members
+-- Trigger to auto-add owner to project_members and create profile
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, full_name)
+    VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
 CREATE OR REPLACE FUNCTION public.handle_new_project()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -121,22 +148,6 @@ CREATE POLICY "Users can view changes for their projects"
     ON public.changes FOR SELECT
     USING (public.has_project_access(project_id, auth.uid()));
 
-CREATE POLICY "Owners and members can insert changes"
-    ON public.changes FOR INSERT
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.project_members
-            WHERE project_id = changes.project_id
-            AND user_id = auth.uid()
-            AND role IN ('owner', 'member')
-        )
-    );
-
--- Policies for agent_sessions
-CREATE POLICY "Users can view agent sessions for their projects"
-    ON public.agent_sessions FOR SELECT
-    USING (public.has_project_access(project_id, auth.uid()));
-
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -147,4 +158,7 @@ END;
 $$ language 'plpgsql';
 
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects
+    FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
