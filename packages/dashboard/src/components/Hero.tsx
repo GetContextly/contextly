@@ -1,218 +1,207 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-// Terminal lines
-type TerminalLineData = {
-  type: 'cmd' | 'blank' | 'info' | 'success' | 'label' | 'agent' | 'prompt-end';
-  content?: string;
-  highlights?: string[];
-  status?: string;
-};
-
-const TERMINAL_LINES: TerminalLineData[] = [
-  { type: 'cmd',        content: '$ contextly init' },
-  { type: 'info',       content: '  Scanning repository...' },
-  { type: 'success',    content: '  Detected Next.js · Supabase · TypeScript', highlights: ['Next.js', 'Supabase', 'TypeScript'] },
-  { type: 'success',    content: '  (142 files) Parsed 38 commits', highlights: ['142 files', '38 commits'] },
-  { type: 'blank' },
-  { type: 'info',       content: '  Linking to Contextly cloud...' },
-  { type: 'success',    content: '  Project registered: proj_8f2a1c9e', highlights: ['proj_8f2a1c9e'] },
-  { type: 'success',    content: '  MCP server configured' },
-  { type: 'blank' },
-  { type: 'label',      content: '  Your agents are ready.' },
-  { type: 'agent',      content: '    Claude Code',      status: 'connected' },
-  { type: 'agent',      content: '    Cursor',           status: 'connected' },
-  { type: 'agent',      content: '    Windsurf',         status: 'connected' },
-  { type: 'prompt-end' },
-];
-
-function TerminalLineView({ line }: { line: TerminalLineData }) {
-  if (line.type === 'blank') return <div className="h-2" aria-hidden="true" />;
-
-  if (line.type === 'cmd') {
-    return (
-      <div className="flex items-baseline gap-2 py-0.5">
-        <span className="text-signal-green/90 font-bold">$</span>
-        <span className="text-white/90">{line.content?.replace('$ ', '')}</span>
-      </div>
-    );
-  }
-
-  if (line.type === 'prompt-end') {
-    return (
-      <div className="flex items-baseline gap-2 py-0.5">
-        <span className="text-signal-green/90 font-bold">$</span>
-        <span className="w-2 h-4 bg-signal-green animate-pulse" />
-      </div>
-    );
-  }
-
-  if (line.type === 'success') {
-    const text = line.content ?? '';
-    return (
-      <div className="flex items-baseline gap-2 py-0.5">
-        <span className="text-signal-green text-[10px] leading-none">✔</span>
-        <span className="text-white/50">{text.trimStart()}</span>
-      </div>
-    );
-  }
-
-  if (line.type === 'info') {
-    return (
-      <div className="flex items-baseline py-0.5">
-        <span className="text-white/30">{line.content?.trimStart()}</span>
-      </div>
-    );
-  }
-
-  if (line.type === 'label') {
-    return (
-      <div className="flex items-baseline py-0.5">
-        <span className="text-white/70 font-medium">{line.content?.trimStart()}</span>
-      </div>
-    );
-  }
-
-  if (line.type === 'agent') {
-    return (
-      <div className="flex items-baseline gap-3 py-0.5">
-        <span className="text-white/20 text-[8px]">◆</span>
-        <span className="text-white/60 w-32">{line.content?.trimStart()}</span>
-        <span className="text-signal-green/70 text-[11px]">connected</span>
-      </div>
-    );
-  }
-
-  return null;
-}
-
 export const Hero = () => {
-  const prefersReduced = useReducedMotion();
+  const { scrollY } = useScroll();
   const [email, setEmail] = useState('');
 
-  const fadeUp = (delay: number) => ({
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.8, delay, ease: EASE },
-  });
+  // Parallax effects
+  const y1 = useTransform(scrollY, [0, 500], [0, -150]);
+  const y2 = useTransform(scrollY, [0, 500], [0, -50]);
+  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+  const scale = useTransform(scrollY, [0, 300], [1, 0.95]);
 
   return (
-    <section className="relative min-h-[90vh] flex items-center pt-24 pb-16 overflow-hidden">
-      {/* Background elements */}
-      <div className="mesh-gradient" />
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+    <section className="relative min-h-screen flex flex-col justify-center items-center pt-20 pb-32 overflow-hidden bg-[#06070a]">
+      {/* 1. BACKGROUND TEXT */}
+      <motion.div
+        style={{ y: y1 }}
+        className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] select-none"
+      >
+        <h2 className="text-[30vw] font-black leading-none uppercase tracking-tighter text-white">
+          SYNC
+        </h2>
+      </motion.div>
 
-      <div className="container relative z-10">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+      {/* 2. GLOWS */}
+      <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-signal-green/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-muted-violet/5 rounded-full blur-[100px] pointer-events-none" />
 
-          {/* LEFT: Content */}
-          <div className="max-w-xl">
-            <motion.div {...fadeUp(0)} className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass border-white/10 mb-6">
-              <span className="w-2 h-2 rounded-full bg-signal-green animate-pulse" />
-              <span className="text-[10px] font-mono tracking-widest text-white/40 uppercase">Contextly v0.1 &bull; Alpha</span>
-            </motion.div>
+      <div className="container relative z-20 flex flex-col items-center text-center">
+        {/* 3. EYEBROW */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: EASE }}
+          className="mb-10 flex items-center gap-3 px-4 py-2 rounded-full glass border-white/5 bg-white/5 backdrop-blur-md"
+        >
+          <div className="flex gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" />
+            <div className="w-1.5 h-1.5 rounded-full bg-signal-green/40" />
+            <div className="w-1.5 h-1.5 rounded-full bg-signal-green/20" />
+          </div>
+          <span className="text-[10px] font-mono tracking-[0.2em] text-white/50 uppercase font-bold">
+            Project Persistence Layer v0.1
+          </span>
+        </motion.div>
 
-            <motion.h1 {...fadeUp(0.1)} className="heading-xl mb-6">
-              <span className="text-gradient">Stop re-explaining</span>
-              <br />
-              <span className="text-gradient-green italic">your project.</span>
-            </motion.h1>
+        {/* 4. HEADLINE */}
+        <motion.div style={{ scale, opacity }}>
+          <h1 className="text-white font-display text-center mb-10 max-w-4xl">
+            <motion.span
+              initial={{ opacity: 0, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, filter: 'blur(0px)' }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className="block text-[clamp(2.5rem,8vw,6.5rem)] font-extrabold leading-[0.9] tracking-[-0.04em]"
+            >
+              Building is fast.
+            </motion.span>
+            <motion.span
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.3, ease: EASE }}
+              className="block text-[clamp(2.5rem,8vw,6.5rem)] font-extrabold leading-[0.9] tracking-[-0.04em] text-white/40"
+            >
+              Explaining is slow.
+            </motion.span>
+          </h1>
+        </motion.div>
 
-            <motion.p {...fadeUp(0.2)} className="text-lg text-white/50 leading-relaxed mb-10 max-w-lg">
-              One CLI command gives Claude Code, Cursor, and Copilot a living project brief — auto-updated from git. Switch tools without losing the thread.
-            </motion.p>
+        {/* 5. SUBTEXT */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 0.5 }}
+          className="max-w-2xl text-xl text-white/40 leading-relaxed mb-12"
+        >
+          Contextly gives your AI agents a persistent memory of your architecture, decisions,
+          and intent. Stop the "Explainer's Loop" once and for all.
+        </motion.p>
 
-            <motion.div {...fadeUp(0.3)} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
-              <div className="relative flex-grow max-w-sm">
-                <input
-                  type="email"
-                  placeholder="name@company.com"
-                  className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-signal-green/50 transition-all outline-none"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <button className="px-8 py-4 rounded-2xl bg-signal-green text-black font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(52,255,179,0.3)]">
-                Join the waitlist
+        {/* 6. ACTION BAR */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.7, ease: EASE }}
+          className="w-full max-w-md group"
+        >
+          <div className="relative p-[1px] rounded-[24px] bg-gradient-to-b from-white/10 to-transparent">
+            <div className="relative flex items-center p-1.5 rounded-[23px] bg-[#0D0E13] border border-white/5">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className="flex-grow bg-transparent px-6 py-4 text-white placeholder:text-white/20 outline-none font-medium"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <button className="bg-signal-green text-black px-8 py-4 rounded-[18px] font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all shadow-[0_10px_30px_rgba(52,255,179,0.15)]">
+                Secure Access
               </button>
-            </motion.div>
-
-            <motion.div {...fadeUp(0.4)} className="flex items-center gap-4 text-white/30 font-mono text-xs">
-              <div className="flex -space-x-2">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="w-6 h-6 rounded-full border-2 border-[#06070a] bg-surface" />
-                ))}
-              </div>
-              <span>2,400+ devs already in</span>
-            </motion.div>
+            </div>
           </div>
 
-          {/* RIGHT: Visual */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
-            animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-            transition={{ duration: 1.2, delay: 0.4, ease: EASE }}
-            className="relative hidden lg:block"
-          >
-            {/* Terminal Window */}
-            <div className="glass-dark rounded-3xl p-1 shadow-2xl animate-float">
-              <div className="bg-[#0D0E13] rounded-[22px] overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center gap-8 px-6 py-4 border-b border-white/5 bg-white/5">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#FF5F57]" />
-                    <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
-                    <div className="w-3 h-3 rounded-full bg-[#28C840]" />
-                  </div>
-                  <div className="text-[11px] font-mono text-white/30">bash — contextly init</div>
-                </div>
+          <div className="mt-8 flex items-center justify-center gap-8 text-[9px] font-mono text-white/20 uppercase tracking-[0.3em]">
+            <span className="hover:text-white/40 transition-colors cursor-default">No Credit Card</span>
+            <span className="h-[3px] w-[3px] rounded-full bg-signal-green/30"></span>
+            <span className="hover:text-white/40 transition-colors cursor-default">Open MCP Standard</span>
+            <span className="h-[3px] w-[3px] rounded-full bg-signal-green/30"></span>
+            <span className="hover:text-white/40 transition-colors cursor-default">Unlimited Repos</span>
+          </div>
+        </motion.div>
+      </div>
 
-                {/* Content */}
-                <div className="p-8 font-mono text-sm leading-relaxed min-h-[400px]">
-                  {TERMINAL_LINES.map((line, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.8 + (i * 0.1), duration: 0.5 }}
-                    >
-                      <TerminalLineView line={line} />
-                    </motion.div>
-                  ))}
+      {/* 7. FLOATING PERSPECTIVE TERMINAL */}
+      <motion.div
+        style={{ y: y2 }}
+        initial={{ opacity: 0, y: 80, rotateX: 20 }}
+        animate={{ opacity: 1, y: 40, rotateX: 10 }}
+        transition={{ duration: 1.5, delay: 0.9, ease: EASE }}
+        className="relative w-full max-w-6xl mt-24 px-6 perspective-[2000px]"
+      >
+        <div className="relative transform-gpu transition-transform duration-700 hover:rotate-x-0">
+          <div className="glass-dark rounded-3xl p-[1px] shadow-[0_60px_100px_rgba(0,0,0,0.6)] border-white/5 overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-tr from-signal-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+            <div className="bg-[#050608]/95 rounded-[23px] overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-8 py-5 border-b border-white/5 bg-white/5">
+                <div className="flex gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/5 border border-white/5" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/5 border border-white/5" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/5 border border-white/5" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-[9px] font-mono text-white/20 tracking-[0.2em] font-bold">
+                    CTX_DAEMON_STREAM
+                  </div>
+                  <div className="h-4 w-[1px] bg-white/5" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-signal-green animate-pulse" />
+                    <div className="text-signal-green/60 text-[9px] font-mono font-bold">LIVE</div>
+                  </div>
                 </div>
               </div>
+
+              {/* Content */}
+              <div className="p-12 font-mono text-[13px] leading-relaxed text-white/30 h-[380px] overflow-hidden relative">
+                <div className="animate-terminal-scroll space-y-2">
+                  <p className="text-white/60">$ contextly sync --target="packages/dashboard"</p>
+                  <p className="text-signal-green/80 flex items-center gap-2">
+                    <span className="animate-bounce">↓</span> Initializing neural context map...
+                  </p>
+                  <div className="h-12" />
+                  <div className="space-y-1">
+                    <p className="flex justify-between">
+                      <span>[ANALYZING] src/components/Hero.tsx</span>
+                      <span className="text-white/10">DONE</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>[ANALYZING] src/app/api/auth/route.ts</span>
+                      <span className="text-white/10">DONE</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>[ANALYZING] supabase/migrations/2026_init.sql</span>
+                      <span className="text-white/10">DONE</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>[ANALYZING] .github/workflows/deploy.yml</span>
+                      <span className="text-white/10 text-signal-green/40 italic">UPDATED</span>
+                    </p>
+                  </div>
+                  <div className="h-8" />
+                  <p className="text-white/60">[GIT] Detected 4 unmapped decisions in recent commits</p>
+                  <p className="pl-4">↳ commit_7f2a: "Migrated from Redux to Zustand for simplicity"</p>
+                  <p className="pl-4">↳ commit_9e11: "Added pgvector for semantic search implementation"</p>
+                  <div className="h-8" />
+                  <p className="text-muted-violet/60">[RAG] Generating embeddings (Voyage-Code-2)...</p>
+                  <p className="text-muted-violet/60">[RAG] Vector storage sync (Supabase) ... 100%</p>
+                  <div className="h-8" />
+                  <p className="text-signal-green font-bold">✓ 142 files indexed. MCP server ready for agents.</p>
+                  <p className="text-white/40 italic mt-6">Claude Code connected. Index up to date.</p>
+                  <p className="text-white/60 mt-4">$ _</p>
+                </div>
+                {/* Visual Fades */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#050608] via-transparent to-transparent pointer-events-none" />
+                <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.8)] pointer-events-none" />
+              </div>
             </div>
-
-            {/* Decorative Elements */}
-            <div className="absolute -top-12 -right-12 w-64 h-64 bg-signal-green/10 rounded-full blur-[100px] -z-10" />
-            <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-accent-blue/10 rounded-full blur-[100px] -z-10" />
-
-            {/* Agent Badges Floating */}
-            <motion.div
-              animate={{ y: [0, -15, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -top-6 -left-12 glass px-4 py-2 rounded-xl flex items-center gap-2"
-            >
-              <div className="w-4 h-4 rounded bg-white/10" />
-              <span className="text-xs font-medium text-white/80">Claude Code</span>
-            </motion.div>
-
-            <motion.div
-              animate={{ y: [0, 15, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute top-1/2 -right-12 glass px-4 py-2 rounded-xl flex items-center gap-2"
-            >
-              <div className="w-4 h-4 rounded-full bg-signal-green/20" />
-              <span className="text-xs font-medium text-white/80">Cursor</span>
-            </motion.div>
-          </motion.div>
-
+          </div>
         </div>
-      </div>
+      </motion.div>
+
+      <style jsx>{`
+        @keyframes terminal-scroll {
+          0% { transform: translateY(0); }
+          50% { transform: translateY(-40px); }
+          100% { transform: translateY(0); }
+        }
+        .animate-terminal-scroll {
+          animation: terminal-scroll 15s ease-in-out infinite;
+        }
+      `}</style>
     </section>
   );
 };
