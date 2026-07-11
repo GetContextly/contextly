@@ -16,7 +16,10 @@
     "dotenv": "^16.4.5",
     "glob": "^10.3.10",
     "@supabase/supabase-js": "^2.45.4",
-    "@contextly/shared": "*"
+    "@contextly/shared": "*",
+    "cli-progress": "^3.12.0",
+    "terminal-table": "^0.0.1",
+    "ora": "^5.4.1"
   },
   "devDependencies": {
     "vitest": "^1.0.0",

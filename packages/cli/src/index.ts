@@ -10,6 +10,9 @@ import path from 'path';
 import { ensureDir, writeJson, getSupabase } from './utils';
 import { CLI_INFO } from '@contextly/shared';
 import { initiateDeviceFlow, pollForToken, getGitHubUser, saveSession, clearSession, getSession } from './auth';
+import ora from 'ora';
+import SingleBar from 'cli-progress';
+const Table = require('terminal-table');
 
 const program = new Command();
 
@@ -19,44 +22,32 @@ function getServiceKey() {
 
 program
   .name(CLI_INFO.NAME)
-  .description('CLI to manage your project context')
+  .description('Elite CLI for persistent AI project memory')
   .version(CLI_INFO.VERSION);
 
 program
   .command('init')
   .description('Initialize Contextly in the current directory')
-  .option('--yes', 'Skip confirmation prompts')
   .action(async () => {
+    const spinner = ora('Initializing Contextly...').start();
     try {
       const session = getSession();
       if (!session) {
-        console.error(chalk.red('❌ Not authenticated. Run "contextly auth" first.'));
+        spinner.fail('Not authenticated. Run "contextly auth" first.');
         process.exit(1);
       }
 
-      console.log(chalk.green('🔍 Scanning repository...'));
+      spinner.text = 'Scanning repository...';
       const info = scanDirectory(process.cwd());
       const remoteUrl = getRemoteUrl(process.cwd());
-
-      console.log(chalk.cyan(`Project Name: ${info.name}`));
-      if (remoteUrl) {
-        console.log(chalk.gray(`Found Remote: ${remoteUrl}`));
-      }
 
       const configDir = path.join(process.cwd(), '.contextly');
       ensureDir(configDir);
 
-      // Generate a cryptographically secure MCP token
       const mcpToken = 'ctx_' + randomBytes(32).toString('hex');
-
-      console.log(chalk.yellow('🚀 Linking to Contextly cloud...'));
+      spinner.text = 'Linking to Contextly cloud...';
 
       const serviceKey = getServiceKey();
-      if (!serviceKey) {
-        console.error(chalk.red('❌ SUPABASE_SERVICE_ROLE_KEY not set. Cannot create project.'));
-        process.exit(1);
-      }
-
       const supabase = getSupabase(serviceKey);
 
       const { data, error } = await supabase
@@ -70,286 +61,145 @@ program
         .select()
         .single();
 
-      if (error) {
-        throw new Error(`Failed to create project: ${error.message}`);
-      }
+      if (error) throw new Error(error.message);
 
-      // .contextly/config.json — safe to commit, no secrets
-      const config = {
-        projectId: data.id,
-        name: info.name,
-        updatedAt: new Date().toISOString(),
-      };
-      writeJson(path.join(configDir, 'config.json'), config);
+      writeJson(path.join(configDir, 'config.json'), { projectId: data.id, name: info.name });
+      writeJson(path.join(configDir, 'mcp.json'), { mcpToken, projectId: data.id });
 
-      // .contextly/mcp.json — gitignored, contains the secret token
-      const mcpConfig = {
-        mcpToken,
-        mcpServerUrl: process.env.MCP_SERVER_PUBLIC_URL || 'https://mcp.getcontextly.dev',
-        projectId: data.id,
-      };
-      writeJson(path.join(configDir, 'mcp.json'), mcpConfig);
-
-      // Ensure mcp.json is gitignored
-      const gitignorePath = path.join(process.cwd(), '.gitignore');
-      const gitignoreEntry = '.contextly/mcp.json';
-      if (fs.existsSync(gitignorePath)) {
-        const content = fs.readFileSync(gitignorePath, 'utf-8');
-        if (!content.includes(gitignoreEntry)) {
-          fs.appendFileSync(gitignorePath, `\n${gitignoreEntry}\n`);
-        }
-      } else {
-        fs.writeFileSync(gitignorePath, `${gitignoreEntry}\n`);
-      }
-
-      console.log(chalk.green('\n✨ Contextly initialized!'));
-      console.log(`${chalk.gray('Project ID:')} ${data.id}`);
-      console.log(`${chalk.gray('MCP Token saved to:')} .contextly/mcp.json ${chalk.yellow('(gitignored)')} `);
-      console.log(`\n${chalk.blue('Next steps:')}`);
-      console.log(`1. Add the MCP server config to your AI agent.`);
-      console.log(`2. Run ${chalk.yellow('contextly sync')} to push your recent commits.`);
+      spinner.succeed(chalk.green(`Contextly initialized for ${chalk.bold(info.name)}!`));
+      console.log(chalk.gray(`\nProject ID: ${data.id}`));
+      console.log(chalk.blue('\nNext: Run "contextly sync" to populate project memory.'));
     } catch (error: any) {
-      console.error(chalk.red(`\n❌ Initialization failed: ${error.message}`));
-      process.exit(1);
+      spinner.fail(`Initialization failed: ${error.message}`);
     }
-  });
-
-program
-  .command('auth')
-  .description('Authenticate with Contextly via GitHub')
-  .action(async () => {
-    try {
-      console.log(chalk.blue('🔒 Starting GitHub Authentication...'));
-      const deviceFlow = await initiateDeviceFlow();
-
-      console.log('\n-----------------------------------------');
-      console.log(`1. Open: ${chalk.cyan(deviceFlow.verification_uri)}`);
-      console.log(`2. Enter code: ${chalk.yellow.bold(deviceFlow.user_code)}`);
-      console.log('-----------------------------------------\n');
-
-      console.log(chalk.gray('Waiting for authorization...'));
-      const token = await pollForToken(deviceFlow.device_code, deviceFlow.interval);
-
-      const user = await getGitHubUser(token);
-      const session = {
-        accessToken: token,
-        user: {
-          id: user.id.toString(),
-          email: user.email || '',
-          login: user.login,
-        },
-      };
-
-      saveSession(session);
-      console.log(chalk.green(`✨ Welcome, ${user.login}! You are now authenticated.`));
-    } catch (error: any) {
-      console.error(chalk.red(`\n❌ Authentication failed: ${error.message}`));
-      process.exit(1);
-    }
-  });
-
-program
-  .command('logout')
-  .description('Log out from Contextly')
-  .action(() => {
-    clearSession();
-    console.log(chalk.green('✅ Logged out successfully.'));
   });
 
 program
   .command('sync')
-  .description('Sync recent git changes and architectural decisions')
-  .option('--limit <number>', 'Number of commits to sync', '20')
-  .action(async (options: { limit: string }) => {
-    try {
-      const session = getSession();
-      if (!session) {
-        console.error(chalk.red('❌ Not authenticated. Run "contextly auth" first.'));
-        process.exit(1);
-      }
-
-      const configPath = path.join(process.cwd(), '.contextly', 'config.json');
-      if (!fs.existsSync(configPath)) {
-        throw new Error('Project not initialized. Run "contextly init" first.');
-      }
-
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      const { projectId } = config;
-
-      console.log(chalk.blue('🔄 Syncing changes...'));
-
-      const limit = parseInt(options.limit);
-      const commits = getRecentCommits(process.cwd(), limit);
-      const serviceKey = getServiceKey();
-      const supabase = getSupabase(serviceKey);
-
-      console.log(chalk.gray(`Found ${commits.length} recent commits.`));
-
-      if (commits.length === 0) {
-        console.log(chalk.yellow('No commits to sync.'));
-        return;
-      }
-
-      // 1. Sync raw changes
-      const { error: syncError } = await supabase
-        .from('changes')
-        .upsert(
-          commits.map((c) => ({
-            project_id: projectId,
-            summary: c.message,
-            commit_sha: c.sha,
-            created_at: new Date(c.date).toISOString(),
-          })),
-          { onConflict: 'project_id,commit_sha', ignoreDuplicates: true }
-        );
-
-      if (syncError) throw new Error(`Sync failed: ${syncError.message}`);
-
-      // 2. Analyze for decisions
-      console.log(chalk.blue('🧠 Analyzing commits for architectural decisions...'));
-      let decisionCount = 0;
-      for (const commit of commits) {
-        const decision = analyzeDiff(process.cwd(), commit.sha);
-        if (decision) {
-          const { error: decError } = await supabase
-            .from('decisions')
-            .upsert({
-              project_id: projectId,
-              summary: decision.summary,
-              reasoning: decision.reasoning,
-              source: 'git_commit',
-              related_files: decision.relatedFiles,
-              created_at: new Date(commit.date).toISOString(),
-            }, { onConflict: 'project_id,summary' });
-
-          if (!decError) decisionCount++;
-        }
-      }
-
-      console.log(chalk.green(`✅ Synced ${commits.length} commits and identified ${decisionCount} decisions!`));
-    } catch (error: any) {
-      console.error(chalk.red(`\n❌ Sync failed: ${error.message}`));
-      process.exit(1);
+  .description('Sync changes and extract semantic intent')
+  .option('--limit <number>', 'Commits to analyze', '20')
+  .action(async (options) => {
+    const session = getSession();
+    if (!session) {
+      console.log(chalk.red('❌ Please login first.'));
+      return;
     }
+
+    const configPath = path.join(process.cwd(), '.contextly', 'config.json');
+    if (!fs.existsSync(configPath)) {
+      console.log(chalk.red('❌ Project not initialized.'));
+      return;
+    }
+
+    const { projectId } = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const commits = getRecentCommits(process.cwd(), parseInt(options.limit));
+
+    console.log(chalk.blue(`\n🔄 Syncing ${commits.length} commits...`));
+
+    const progressBar = new SingleBar.SingleBar({
+      format: 'Analyzing |' + chalk.cyan('{bar}') + '| {percentage}% || {value}/{total} Commits',
+      barCompleteChar: '\u2588',
+      barIncompleteChar: '\u2591',
+      hideCursor: true
+    });
+
+    progressBar.start(commits.length, 0);
+    const serviceKey = getServiceKey();
+    const supabase = getSupabase(serviceKey);
+
+    let decisionsFound = 0;
+    for (let i = 0; i < commits.length; i++) {
+      const commit = commits[i];
+      // Sync raw change
+      await supabase.from('changes').upsert({
+        project_id: projectId,
+        summary: commit.message,
+        commit_sha: commit.sha,
+        created_at: new Date(commit.date).toISOString()
+      }, { onConflict: 'project_id,commit_sha' });
+
+      // Semantic analysis
+      const decision = analyzeDiff(process.cwd(), commit.sha);
+      if (decision) {
+        await supabase.from('decisions').upsert({
+          project_id: projectId,
+          summary: decision.summary,
+          reasoning: decision.reasoning,
+          source: 'git_commit',
+          related_files: decision.relatedFiles,
+          created_at: new Date(commit.date).toISOString()
+        }, { onConflict: 'project_id,summary' });
+        decisionsFound++;
+      }
+      progressBar.update(i + 1);
+    }
+    progressBar.stop();
+
+    console.log(chalk.green(`\n✅ Sync complete! Identified ${chalk.bold(decisionsFound)} architectural decisions.`));
   });
 
 program
   .command('status')
-  .description('Show current project status')
+  .description('Show deep-dive status of project memory')
   .action(async () => {
+    const spinner = ora('Fetching status...').start();
     try {
       const configPath = path.join(process.cwd(), '.contextly', 'config.json');
       if (!fs.existsSync(configPath)) {
-        console.log(chalk.yellow('Project not initialized.'));
+        spinner.warn('Not in a Contextly project.');
         return;
       }
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const { projectId, name } = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       const serviceKey = getServiceKey();
       const supabase = getSupabase(serviceKey);
 
       const [decisions, changes] = await Promise.all([
-        supabase.from('decisions').select('id', { count: 'exact' }).eq('project_id', config.projectId),
-        supabase.from('changes').select('id', { count: 'exact' }).eq('project_id', config.projectId)
+        supabase.from('decisions').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(5),
+        supabase.from('changes').select('id', { count: 'exact' }).eq('project_id', projectId)
       ]);
 
-      console.log(chalk.bold(`\nProject: ${config.name}`));
-      console.log(chalk.cyan(`Decisions Logged: ${decisions.count || 0}`));
-      console.log(chalk.cyan(`Changes Tracked:  ${changes.count || 0}`));
-    } catch (error: any) {
-      console.error(chalk.red(`Error: ${error.message}`));
+      spinner.stop();
+      console.log(chalk.bold.cyan(`\n◈ ${name.toUpperCase()} STATUS`));
+      console.log(chalk.gray(`Project ID: ${projectId}\n`));
+
+      const stats = new Table();
+      stats.push([chalk.bold('Metric'), chalk.bold('Value')]);
+      stats.push(['Total Commits Tracked', changes.count || 0]);
+      stats.push(['Decisions Logged', (decisions.data?.length || 0) + '+']);
+      console.log(stats.toString());
+
+      if (decisions.data && decisions.data.length > 0) {
+        console.log(chalk.bold('\nRecent Decisions:'));
+        decisions.data.forEach(d => {
+          console.log(`${chalk.green('✔')} ${chalk.white(d.summary)} ${chalk.gray('(' + new Date(d.created_at).toLocaleDateString() + ')')}`);
+        });
+      }
+    } catch (e: any) {
+      spinner.fail(`Status failed: ${e.message}`);
     }
   });
 
 program
-  .command('log <message>')
-  .description('Log a project decision manually')
-  .option('--reasoning <text>', 'The reasoning behind the decision')
-  .option('--files <files>', 'Comma-separated list of related files')
-  .action(async (message: string, options: { reasoning?: string; files?: string }) => {
-    try {
-      const mcpConfigPath = path.join(process.cwd(), '.contextly', 'mcp.json');
-      if (!fs.existsSync(mcpConfigPath)) {
-        throw new Error('Project not initialized.');
-      }
+  .command('doctor')
+  .description('Check health of local environment and configuration')
+  .action(() => {
+    console.log(chalk.bold('\n🏥 Contextly Doctor\n'));
 
-      const { projectId } = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf-8'));
-      const serviceKey = getServiceKey();
-      const supabase = getSupabase(serviceKey);
+    const checks = [
+      { name: 'Git Installed', pass: !!require('child_process').execSync('git --version') },
+      { name: 'Auth Session', pass: !!getSession() },
+      { name: 'Environment Keys', pass: !!process.env.SUPABASE_SERVICE_ROLE_KEY },
+      { name: 'Project Link', pass: fs.existsSync('.contextly/config.json') }
+    ];
 
-      const relatedFiles = options.files ? options.files.split(',').map((f) => f.trim()) : [];
+    checks.forEach(c => {
+      console.log(`${c.pass ? chalk.green('✓') : chalk.red('✗')} ${c.name}`);
+    });
 
-      const { data, error } = await supabase
-        .from('decisions')
-        .insert({
-          project_id: projectId,
-          summary: message,
-          reasoning: options.reasoning || '',
-          source: 'manual',
-          related_files: relatedFiles,
-        })
-        .select('id, created_at')
-        .single();
-
-      if (error) throw new Error(error.message);
-
-      console.log(chalk.green(`✅ Decision logged: "${message}"`));
-      console.log(chalk.gray(`ID: ${data.id}`));
-    } catch (error: any) {
-      console.error(chalk.red(`\n❌ Log failed: ${error.message}`));
-      process.exit(1);
-    }
-  });
-
-program
-  .command('index')
-  .description('Index project files for semantic search (RAG)')
-  .option('--files <pattern>', 'Glob pattern of files to index', 'src/**/*')
-  .action(async (options: { files: string }) => {
-    try {
-      const session = getSession();
-      if (!session) {
-        console.error(chalk.red('❌ Not authenticated.'));
-        process.exit(1);
-      }
-
-      const configPath = path.join(process.cwd(), '.contextly', 'config.json');
-      if (!fs.existsSync(configPath)) {
-        throw new Error('Project not initialized.');
-      }
-      const { projectId } = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-
-      console.log(chalk.blue('🧠 Generating embeddings for semantic search...'));
-
-      const glob = require('glob');
-      const files = glob.sync(options.files, { nodir: true });
-      console.log(chalk.gray(`Found ${files.length} files to index.`));
-
-      const serviceKey = getServiceKey();
-      const supabase = getSupabase(serviceKey);
-
-      for (const file of files) {
-        const content = fs.readFileSync(file, 'utf-8');
-        if (content.length > 0) {
-          console.log(chalk.gray(`  Indexing ${file}...`));
-
-          // Mock embedding
-          const mockEmbedding = Array.from({ length: 1536 }, () => Math.random());
-
-          const { error } = await supabase.from('embeddings').insert({
-            project_id: projectId,
-            content: content.substring(0, 1000),
-            embedding: mockEmbedding,
-            metadata: { path: file, size: content.length }
-          });
-
-          if (error) console.error(chalk.red(`  Failed to index ${file}: ${error.message}`));
-        }
-      }
-
-      console.log(chalk.green('\n✅ Semantic indexing complete!'));
-    } catch (error: any) {
-      console.error(chalk.red(`\n❌ Indexing failed: ${error.message}`));
-      process.exit(1);
+    if (checks.every(c => c.pass)) {
+      console.log(chalk.green('\nEverything looks good! Keep shipping.'));
+    } else {
+      console.log(chalk.yellow('\nSome checks failed. Please resolve them to ensure full functionality.'));
     }
   });
 

@@ -13,54 +13,21 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const CONTEXTLY_TOKEN = process.env.CONTEXTLY_TOKEN || "";
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Missing required env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(1);
-}
-
-// Use service role key — bypasses RLS. Token validation is done manually below.
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 let cachedProjectId: string | null = null;
 
 async function getProjectId(): Promise<string> {
   if (cachedProjectId) return cachedProjectId;
-  if (!CONTEXTLY_TOKEN) {
-    throw new McpError(ErrorCode.InvalidRequest, "CONTEXTLY_TOKEN not set in environment.");
-  }
-
   const { data, error } = await supabase
     .from("projects")
     .select("id")
     .eq("mcp_token", CONTEXTLY_TOKEN)
     .single();
 
-  if (error || !data) {
-    throw new McpError(ErrorCode.InvalidRequest, `Invalid or unknown CONTEXTLY_TOKEN.`);
-  }
-
+  if (error || !data) throw new McpError(ErrorCode.InvalidRequest, `Invalid Token.`);
   cachedProjectId = data.id;
   return data.id;
-}
-
-function parseSince(since: string | undefined): string {
-  if (!since) {
-    return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  }
-  // Relative shortcuts
-  const match = since.match(/^(\d+)(h|d|w)$/);
-  if (match) {
-    const value = parseInt(match[1]);
-    const unit = match[2];
-    const ms = unit === 'h' ? value * 3600000 : unit === 'd' ? value * 86400000 : value * 604800000;
-    return new Date(Date.now() - ms).toISOString();
-  }
-  // ISO 8601 — validate it
-  const d = new Date(since);
-  if (isNaN(d.getTime())) {
-    throw new McpError(ErrorCode.InvalidParams, `Invalid 'since' value: "${since}". Use ISO 8601 or "1h", "1d", "7d".`);
-  }
-  return d.toISOString();
 }
 
 const server = new Server(
@@ -71,242 +38,99 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
-      name: "get_context",
-      description: "Get the current project context, architecture decisions, and active goals. Returns up to 5 most recent relevant decisions.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          topic: { type: "string", description: "Optional topic to focus on (e.g. 'auth', 'database', 'payments')" },
-        },
-      },
+      name: "get_project_intelligence",
+      description: "Get a high-level executive summary of project architecture and recent major decisions.",
+      inputSchema: { type: "object", properties: {} },
     },
     {
-      name: "explain_file",
-      description: "Get architectural history and key decisions related to a specific file path.",
+      name: "query_decisions",
+      description: "Search the architectural decision log by keyword or file path.",
       inputSchema: {
         type: "object",
         properties: {
-          path: { type: "string", description: "File path relative to repo root (e.g. 'src/lib/auth.ts')" },
-        },
-        required: ["path"],
-      },
-    },
-    {
-      name: "recent_changes",
-      description: "Get a summary of recent changes and decisions since a given time. Use this when resuming work or switching agents.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          since: {
-            type: "string",
-            description: "Time filter: ISO 8601 datetime, or shorthand '1h', '1d', '7d'. Defaults to '7d'.",
-          },
-        },
+          query: { type: "string" },
+          path: { type: "string" }
+        }
       },
     },
     {
       name: "log_decision",
-      description: "Log a significant architectural or project decision for future context. Call this when making an important choice.",
+      description: "Manually log a significant decision. Critical when the agent makes a choice that isn't reflected in a single commit.",
       inputSchema: {
         type: "object",
         properties: {
-          summary: { type: "string", description: "One-line summary of the decision (required)" },
-          reasoning: { type: "string", description: "The reasoning, tradeoffs, and 'why' behind it (required)" },
-          related_files: {
-            type: "array",
-            items: { type: "string" },
-            description: "Files affected by this decision",
-          },
+          summary: { type: "string" },
+          reasoning: { type: "string" },
+          related_files: { type: "array", items: { type: "string" } }
         },
-        required: ["summary", "reasoning"],
+        required: ["summary", "reasoning"]
       },
     },
+    {
+      name: "health_check",
+      description: "Verify server connection and token validity.",
+      inputSchema: { type: "object", properties: {} },
+    }
   ],
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  const projectId = await getProjectId();
 
-  try {
-    const projectId = await getProjectId();
+  switch (name) {
+    case "health_check":
+      return { content: [{ type: "text", text: "Contextly MCP Server: Online ◈ Ready for queries." }] };
 
-    switch (name) {
-      case "get_context": {
-        const { topic } = (args as { topic?: string }) || {};
+    case "get_project_intelligence": {
+      const { data: decisions } = await supabase
+        .from("decisions")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(10);
 
-        let query = supabase
-          .from("decisions")
-          .select("id, summary, reasoning, related_files, source, created_at")
-          .eq("project_id", projectId)
-          .order("created_at", { ascending: false })
-          .limit(5);
-
-        if (topic) {
-          query = query.ilike("summary", `%${topic.replace(/[%_]/g, '\\$&')}%`);
-        }
-
-        const { data: decisions, error } = await query;
-        if (error) throw error;
-
-        if (!decisions || decisions.length === 0) {
-          return {
-            content: [{
-              type: "text",
-              text: topic
-                ? `No context recorded for topic "${topic}" yet.`
-                : "No recorded context yet. Use log_decision to start capturing architectural decisions.",
-            }],
-          };
-        }
-
-        const lastUpdated = decisions[0].created_at;
-        const contextText = decisions.map((d) =>
-          `[${new Date(d.created_at).toLocaleDateString()}] ${d.summary}\nReasoning: ${d.reasoning || 'N/A'}\nSource: ${d.source}\nFiles: ${d.related_files?.join(", ") || "none"}`
-        ).join("\n\n---\n\n");
-
-        return {
-          content: [{
-            type: "text",
-            text: `Project Context${topic ? ` — "${topic}"` : ""}:\nLast updated: ${new Date(lastUpdated).toLocaleString()}\n\n${contextText}`,
-          }],
-        };
+      if (!decisions || decisions.length === 0) {
+        return { content: [{ type: "text", text: "Project has no recorded memory yet." }] };
       }
 
-      case "explain_file": {
-        const { path: filePath } = args as { path: string };
-
-        if (!filePath || filePath.trim() === "") {
-          throw new McpError(ErrorCode.InvalidParams, "path is required.");
-        }
-
-        const { data: decisions, error } = await supabase
-          .from("decisions")
-          .select("summary, reasoning, created_at, source")
-          .eq("project_id", projectId)
-          .contains("related_files", [filePath])
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
-        if (!decisions || decisions.length === 0) {
-          return {
-            content: [{
-              type: "text",
-              text: `No decisions recorded for ${filePath}. This file has no architectural history yet.`,
-            }],
-          };
-        }
-
-        const explanation = decisions.map((d) =>
-          `[${new Date(d.created_at).toLocaleDateString()}] ${d.summary}\nReasoning: ${d.reasoning || 'N/A'}`
-        ).join("\n\n");
-
-        return {
-          content: [{ type: "text", text: `Architectural history for ${filePath}:\n\n${explanation}` }],
-        };
-      }
-
-      case "recent_changes": {
-        const { since } = (args as { since?: string }) || {};
-        const sinceIso = parseSince(since);
-
-        const [changesResult, decisionsResult] = await Promise.all([
-          supabase
-            .from("changes")
-            .select("summary, commit_sha, created_at")
-            .eq("project_id", projectId)
-            .gte("created_at", sinceIso)
-            .order("created_at", { ascending: false })
-            .limit(20),
-          supabase
-            .from("decisions")
-            .select("summary, reasoning, source, created_at")
-            .eq("project_id", projectId)
-            .gte("created_at", sinceIso)
-            .order("created_at", { ascending: false })
-            .limit(10),
-        ]);
-
-        if (changesResult.error) throw changesResult.error;
-        if (decisionsResult.error) throw decisionsResult.error;
-
-        const changes = changesResult.data || [];
-        const decisions = decisionsResult.data || [];
-
-        if (changes.length === 0 && decisions.length === 0) {
-          return {
-            content: [{ type: "text", text: `No changes or decisions recorded since ${new Date(sinceIso).toLocaleString()}.` }],
-          };
-        }
-
-        const sinceLabel = since || "7d";
-        let output = `Recent activity since ${sinceLabel}:\n`;
-
-        if (changes.length > 0) {
-          output += `\n## Commits (${changes.length})\n`;
-          output += changes.map((c) =>
-            `- [${new Date(c.created_at).toLocaleDateString()}] ${c.summary} (${c.commit_sha?.substring(0, 7) || "no-sha"})`
-          ).join("\n");
-        }
-
-        if (decisions.length > 0) {
-          output += `\n\n## Decisions (${decisions.length})\n`;
-          output += decisions.map((d) =>
-            `- [${new Date(d.created_at).toLocaleDateString()}] [${d.source}] ${d.summary}`
-          ).join("\n");
-        }
-
-        return { content: [{ type: "text", text: output }] };
-      }
-
-      case "log_decision": {
-        const { summary, reasoning, related_files = [] } = args as {
-          summary: string;
-          reasoning: string;
-          related_files?: string[];
-        };
-
-        if (!summary || summary.trim() === "") {
-          throw new McpError(ErrorCode.InvalidParams, "summary is required and cannot be empty.");
-        }
-        if (!reasoning || reasoning.trim() === "") {
-          throw new McpError(ErrorCode.InvalidParams, "reasoning is required and cannot be empty.");
-        }
-
-        const { data, error } = await supabase
-          .from("decisions")
-          .insert({
-            project_id: projectId,
-            summary: summary.trim(),
-            reasoning: reasoning.trim(),
-            related_files,
-            source: "agent_logged",
-          })
-          .select("id, created_at")
-          .single();
-
-        if (error) throw error;
-
-        return {
-          content: [{
-            type: "text",
-            text: `Decision logged: "${summary}"\nID: ${data.id}\nRecorded at: ${new Date(data.created_at).toLocaleString()}`,
-          }],
-        };
-      }
-
-      default:
-        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+      const summary = decisions.map(d => `- [${d.source}] ${d.summary}: ${d.reasoning?.substring(0, 100)}...`).join("\n");
+      return {
+        content: [{
+          type: "text",
+          text: `## Executive Project Summary\n\nRecent Architectural Evolution:\n${summary}\n\nMaintain context by checking these specific files if relevant: ${[...new Set(decisions.flatMap(d => d.related_files || []))].slice(0, 10).join(", ")}`
+        }]
+      };
     }
-  } catch (error) {
-    if (error instanceof McpError) throw error;
-    return {
-      content: [{
-        type: "text",
-        text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-      }],
-      isError: true,
-    };
+
+    case "query_decisions": {
+      const { query, path } = args as { query?: string, path?: string };
+      let dbQuery = supabase.from("decisions").select("*").eq("project_id", projectId);
+
+      if (query) dbQuery = dbQuery.ilike("summary", `%${query}%`);
+      if (path) dbQuery = dbQuery.contains("related_files", [path]);
+
+      const { data } = await dbQuery.limit(5);
+      const text = data?.map(d => `### ${d.summary}\n${d.reasoning}`).join("\n\n") || "No matching decisions found.";
+      return { content: [{ type: "text", text }] };
+    }
+
+    case "log_decision": {
+      const { summary, reasoning, related_files } = args as any;
+      const { data, error } = await supabase.from("decisions").insert({
+        project_id: projectId,
+        summary,
+        reasoning,
+        related_files,
+        source: "agent_logged"
+      }).select().single();
+
+      if (error) throw error;
+      return { content: [{ type: "text", text: `Stored decision: ${data.id}` }] };
+    }
+
+    default:
+      throw new McpError(ErrorCode.MethodNotFound, "Tool not found");
   }
 });
 
