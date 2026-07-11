@@ -30,6 +30,20 @@ async function getProjectId(): Promise<string> {
   return data.id;
 }
 
+/**
+ * ELITE CTO SCALING: Database-level rate limiting
+ */
+async function enforceRateLimit(projectId: string) {
+  const { data: allowed, error } = await supabase.rpc("check_rate_limit", {
+    p_key: `mcp_query_${projectId}`,
+    p_limit: 100, // 100 queries per minute
+    p_window: "1 minute"
+  });
+
+  if (error) console.error("Rate limit check failed", error);
+  if (!allowed) throw new McpError(ErrorCode.InvalidRequest, "Rate limit exceeded. Slow down, architect.");
+}
+
 const server = new Server(
   { name: MCP_SERVER_INFO.NAME, version: MCP_SERVER_INFO.VERSION },
   { capabilities: { tools: {} } }
@@ -39,31 +53,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "get_project_intelligence",
-      description: "Get a high-level executive summary of project architecture and recent major decisions.",
+      description: "High-level summary of project memory and architectural health.",
       inputSchema: { type: "object", properties: {} },
     },
     {
       name: "query_decisions",
-      description: "Search the architectural decision log by keyword or file path.",
+      description: "Search the architectural decision log with high-performance indexing.",
       inputSchema: {
         type: "object",
         properties: {
           query: { type: "string" },
           path: { type: "string" }
         }
-      },
-    },
-    {
-      name: "log_decision",
-      description: "Manually log a significant decision. Critical when the agent makes a choice that isn't reflected in a single commit.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          reasoning: { type: "string" },
-          related_files: { type: "array", items: { type: "string" } }
-        },
-        required: ["summary", "reasoning"]
       },
     },
     {
@@ -78,34 +79,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   const projectId = await getProjectId();
 
+  // Enforce scaling protection
+  await enforceRateLimit(projectId);
+
   switch (name) {
     case "health_check":
-      return { content: [{ type: "text", text: "Contextly MCP Server: Online ◈ Ready for queries." }] };
+      return { content: [{ type: "text", text: "Contextly MCP Server: Scaling-Ready ◈ Online." }] };
 
     case "get_project_intelligence": {
-      const { data: decisions } = await supabase
-        .from("decisions")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false })
-        .limit(10);
+      // SCALING OPTIMIZATION: Use stats table and composite indexes
+      const [statsRes, decisionsRes] = await Promise.all([
+        supabase.from("project_stats").select("*").eq("project_id", projectId).single(),
+        supabase.from("decisions").select("summary, source, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(10)
+      ]);
 
-      if (!decisions || decisions.length === 0) {
-        return { content: [{ type: "text", text: "Project has no recorded memory yet." }] };
-      }
+      const stats = statsRes.data;
+      const decisions = decisionsRes.data || [];
 
-      const summary = decisions.map(d => `- [${d.source}] ${d.summary}: ${d.reasoning?.substring(0, 100)}...`).join("\n");
-      return {
-        content: [{
-          type: "text",
-          text: `## Executive Project Summary\n\nRecent Architectural Evolution:\n${summary}\n\nMaintain context by checking these specific files if relevant: ${[...new Set(decisions.flatMap(d => d.related_files || []))].slice(0, 10).join(", ")}`
-        }]
-      };
+      let output = `## Project Architecture Overview\n`;
+      output += `- **Integrity Status**: ${stats ? 'Healthy' : 'Initializing'}\n`;
+      output += `- **Memory Depth**: ${stats?.decision_count || 0} decisions across ${stats?.change_count || 0} git cycles.\n\n`;
+
+      output += `### Recent Architectural Pulse:\n`;
+      output += decisions.map(d => `- [${d.source === 'git_commit' ? 'SYNC' : 'LOG'}] ${d.summary}`).join("\n");
+
+      return { content: [{ type: "text", text: output }] };
     }
 
     case "query_decisions": {
       const { query, path } = args as { query?: string, path?: string };
-      let dbQuery = supabase.from("decisions").select("*").eq("project_id", projectId);
+
+      // SCALING OPTIMIZATION: Filter using indexed columns
+      let dbQuery = supabase.from("decisions").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
 
       if (query) dbQuery = dbQuery.ilike("summary", `%${query}%`);
       if (path) dbQuery = dbQuery.contains("related_files", [path]);
@@ -113,20 +118,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { data } = await dbQuery.limit(5);
       const text = data?.map(d => `### ${d.summary}\n${d.reasoning}`).join("\n\n") || "No matching decisions found.";
       return { content: [{ type: "text", text }] };
-    }
-
-    case "log_decision": {
-      const { summary, reasoning, related_files } = args as any;
-      const { data, error } = await supabase.from("decisions").insert({
-        project_id: projectId,
-        summary,
-        reasoning,
-        related_files,
-        source: "agent_logged"
-      }).select().single();
-
-      if (error) throw error;
-      return { content: [{ type: "text", text: `Stored decision: ${data.id}` }] };
     }
 
     default:

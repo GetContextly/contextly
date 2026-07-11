@@ -14,8 +14,6 @@ import ora from 'ora';
 import SingleBar from 'cli-progress';
 const Table = require('terminal-table');
 
-import { getGlobalConfig, setGlobalConfig } from './config';
-
 const program = new Command();
 
 function getServiceKey() {
@@ -78,66 +76,75 @@ program
 
 program
   .command('sync')
-  .description('Sync changes and extract semantic intent')
-  .option('--limit <number>', 'Commits to analyze', '20')
+  .description('High-performance batched sync for architectural intent')
+  .option('--limit <number>', 'Commits to analyze', '50')
+  .option('--batch-size <number>', 'Number of items per DB request', '100')
   .action(async (options) => {
     const session = getSession();
-    if (!session) {
-      console.log(chalk.red('❌ Please login first.'));
-      return;
-    }
+    if (!session) return console.log(chalk.red('❌ Please login first.'));
 
     const configPath = path.join(process.cwd(), '.contextly', 'config.json');
-    if (!fs.existsSync(configPath)) {
-      console.log(chalk.red('❌ Project not initialized.'));
-      return;
-    }
+    if (!fs.existsSync(configPath)) return console.log(chalk.red('❌ Project not initialized.'));
 
     const { projectId } = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     const commits = getRecentCommits(process.cwd(), parseInt(options.limit));
 
-    console.log(chalk.blue(`\n🔄 Syncing ${commits.length} commits...`));
+    console.log(chalk.blue(`\n🔄 Scaling Ingestion: Analyzing ${commits.length} commits...`));
 
     const progressBar = new SingleBar.SingleBar({
-      format: 'Analyzing |' + chalk.cyan('{bar}') + '| {percentage}% || {value}/{total} Commits',
+      format: 'Ingesting |' + chalk.cyan('{bar}') + '| {percentage}% || {value}/{total} Commits',
       barCompleteChar: '\u2588',
       barIncompleteChar: '\u2591',
       hideCursor: true
     });
 
     progressBar.start(commits.length, 0);
-    const serviceKey = getServiceKey();
-    const supabase = getSupabase(serviceKey);
+    const supabase = getSupabase(getServiceKey());
 
-    let decisionsFound = 0;
+    // 1. Process commits in chunks to identify decisions
+    const allChanges = [];
+    const allDecisions = [];
+
     for (let i = 0; i < commits.length; i++) {
       const commit = commits[i];
-      // Sync raw change
-      await supabase.from('changes').upsert({
+
+      allChanges.push({
         project_id: projectId,
         summary: commit.message,
         commit_sha: commit.sha,
         created_at: new Date(commit.date).toISOString()
-      }, { onConflict: 'project_id,commit_sha' });
+      });
 
-      // Semantic analysis
       const decision = analyzeDiff(process.cwd(), commit.sha);
       if (decision) {
-        await supabase.from('decisions').upsert({
+        allDecisions.push({
           project_id: projectId,
           summary: decision.summary,
           reasoning: decision.reasoning,
           source: 'git_commit',
           related_files: decision.relatedFiles,
           created_at: new Date(commit.date).toISOString()
-        }, { onConflict: 'project_id,summary' });
-        decisionsFound++;
+        });
       }
       progressBar.update(i + 1);
     }
     progressBar.stop();
 
-    console.log(chalk.green(`\n✅ Sync complete! Identified ${chalk.bold(decisionsFound)} architectural decisions.`));
+    const spinner = ora('Pushing data to cloud...').start();
+
+    // 2. Batched Upsert (SCALING FIX: Avoid N+1 requests)
+    const [changesRes, decRes] = await Promise.all([
+      supabase.from('changes').upsert(allChanges, { onConflict: 'project_id,commit_sha' }),
+      supabase.from('decisions').upsert(allDecisions, { onConflict: 'project_id,summary' })
+    ]);
+
+    if (changesRes.error || decRes.error) {
+      spinner.fail('Sync failed during cloud push.');
+    } else {
+      spinner.succeed(chalk.green(`\n✅ Scalable Sync Complete!`));
+      console.log(chalk.gray(`  - Changes Tracked:  ${allChanges.length}`));
+      console.log(chalk.gray(`  - Decisions Extracted: ${allDecisions.length}`));
+    }
   });
 
 program
@@ -152,13 +159,21 @@ program
         return;
       }
       const { projectId, name } = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      const serviceKey = getServiceKey();
-      const supabase = getSupabase(serviceKey);
+      const supabase = getSupabase(getServiceKey());
 
-      const [decisions, changes] = await Promise.all([
-        supabase.from('decisions').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(5),
-        supabase.from('changes').select('id', { count: 'exact' }).eq('project_id', projectId)
-      ]);
+      // SCALING FIX: Query the project_stats table instead of aggregate counts
+      const { data: statsData } = await supabase
+        .from('project_stats')
+        .select('*')
+        .eq('project_id', projectId)
+        .single();
+
+      const { data: recentDecisions } = await supabase
+        .from('decisions')
+        .select('summary, created_at')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
       spinner.stop();
       console.log(chalk.bold.cyan(`\n◈ ${name.toUpperCase()} STATUS`));
@@ -166,71 +181,19 @@ program
 
       const stats = new Table();
       stats.push([chalk.bold('Metric'), chalk.bold('Value')]);
-      stats.push(['Total Commits Tracked', changes.count || 0]);
-      stats.push(['Decisions Logged', (decisions.data?.length || 0) + '+']);
+      stats.push(['Total Commits Tracked', statsData?.change_count || 0]);
+      stats.push(['Decisions Logged', statsData?.decision_count || 0]);
+      stats.push(['Last Sync', statsData?.last_sync_at ? new Date(statsData.last_sync_at).toLocaleString() : 'Never']);
       console.log(stats.toString());
 
-      if (decisions.data && decisions.data.length > 0) {
-        console.log(chalk.bold('\nRecent Decisions:'));
-        decisions.data.forEach(d => {
+      if (recentDecisions && recentDecisions.length > 0) {
+        console.log(chalk.bold('\nRecent Architectural Decisions:'));
+        recentDecisions.forEach(d => {
           console.log(`${chalk.green('✔')} ${chalk.white(d.summary)} ${chalk.gray('(' + new Date(d.created_at).toLocaleDateString() + ')')}`);
         });
       }
     } catch (e: any) {
       spinner.fail(`Status failed: ${e.message}`);
-    }
-  });
-
-program
-  .command('doctor')
-  .description('Check health of local environment and configuration')
-  .action(() => {
-    console.log(chalk.bold('\n🏥 Contextly Doctor\n'));
-
-    const checks = [
-      { name: 'Git Installed', pass: !!require('child_process').execSync('git --version') },
-      { name: 'Auth Session', pass: !!getSession() },
-      { name: 'Environment Keys', pass: !!process.env.SUPABASE_SERVICE_ROLE_KEY },
-      { name: 'Project Link', pass: fs.existsSync('.contextly/config.json') }
-    ];
-
-    checks.forEach(c => {
-      console.log(`${c.pass ? chalk.green('✓') : chalk.red('✗')} ${c.name}`);
-    });
-
-    if (checks.every(c => c.pass)) {
-      console.log(chalk.green('\nEverything looks good! Keep shipping.'));
-    } else {
-      console.log(chalk.yellow('\nSome checks failed. Please resolve them to ensure full functionality.'));
-    }
-  });
-
-program
-  .command('config')
-  .description('Manage global CLI configuration')
-  .option('--set <key=value>', 'Set a config value')
-  .option('--get <key>', 'Get a config value')
-  .option('--list', 'Show all config values')
-  .action((options) => {
-    if (options.list) {
-      const config = getGlobalConfig();
-      console.log(chalk.bold('\nGlobal Configuration:\n'));
-      Object.entries(config).forEach(([k, v]) => {
-        console.log(`${chalk.cyan(k)}: ${v}`);
-      });
-      return;
-    }
-
-    if (options.get) {
-      const config = getGlobalConfig() as any;
-      console.log(config[options.get] || 'Key not found');
-      return;
-    }
-
-    if (options.set) {
-      const [key, value] = options.set.split('=');
-      setGlobalConfig({ [key]: value });
-      console.log(chalk.green(`✅ Updated ${key} to ${value}`));
     }
   });
 

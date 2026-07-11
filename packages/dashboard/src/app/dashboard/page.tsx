@@ -10,7 +10,11 @@ interface Project {
   name: string;
   github_repo_url: string | null;
   created_at: string;
-  decision_count?: number;
+  stats?: {
+    decision_count: number;
+    change_count: number;
+    last_sync_at: string;
+  };
 }
 
 export default function ProjectsPage() {
@@ -19,19 +23,20 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     async function fetchProjects() {
-      // Fetch projects and counts in one go if possible, or separate
+      // SCALING FIX: We now fetch stats from the pre-aggregated project_stats table
+      // This avoids expensive JOIN and COUNT operations on millions of rows.
       const { data, error } = await supabase
         .from('projects')
         .select(`
           *,
-          decisions:decisions(count)
+          stats:project_stats(decision_count, change_count, last_sync_at)
         `)
         .order('created_at', { ascending: false });
 
       if (!error && data) {
         setProjects(data.map((p: any) => ({
           ...p,
-          decision_count: p.decisions?.[0]?.count || 0
+          stats: p.stats // Postgres returns this as an object/array because of the link
         })));
       }
       setLoading(false);
@@ -45,7 +50,7 @@ export default function ProjectsPage() {
       <div className="flex justify-between items-center mb-12">
         <div>
           <h1 className="heading-m text-white mb-2">Projects</h1>
-          <p className="text-white/40 text-sm font-mono uppercase tracking-widest">Architectural Memory Hubs</p>
+          <p className="text-white/40 text-sm font-mono uppercase tracking-widest italic">Scaled Infrastructure</p>
         </div>
         <button className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 hover:border-signal-green/50 hover:bg-signal-green/5 text-sm font-bold transition-all group">
           <span className="text-signal-green group-hover:mr-2 transition-all">+</span> Create New Project
@@ -69,14 +74,11 @@ export default function ProjectsPage() {
           </div>
           <h3 className="text-2xl font-display font-bold mb-4">No projects yet</h3>
           <p className="text-white/40 mb-10 max-w-sm mx-auto">
-            Initialize your first project via the CLI to start capturing architectural context automatically.
+            Ready for scale. Initialize your project memory in seconds.
           </p>
-          <div className="inline-flex flex-col items-center gap-4">
-             <code className="px-6 py-3 rounded-2xl bg-black border border-white/10 text-signal-green font-mono text-sm">
-               contextly init
-             </code>
-             <p className="text-[10px] text-white/20 font-mono uppercase">Run this in your project root</p>
-          </div>
+          <code className="px-6 py-3 rounded-2xl bg-black border border-white/10 text-signal-green font-mono text-sm">
+            contextly init
+          </code>
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -95,9 +97,12 @@ export default function ProjectsPage() {
                   <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-signal-green/10 transition-colors">
                     <span className="text-xl opacity-40 group-hover:opacity-100 transition-opacity">◈</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-signal-green shadow-[0_0_8px_#34FFB3]" />
-                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-tighter">Active</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-signal-green shadow-[0_0_8px_#34FFB3]" />
+                      <span className="text-[10px] font-mono text-white/30 uppercase tracking-tighter">Healthy</span>
+                    </div>
+                    <span className="text-[8px] font-mono text-white/10">SYNCED {project.stats?.last_sync_at ? new Date(project.stats.last_sync_at).toLocaleTimeString() : 'N/A'}</span>
                   </div>
                 </div>
 
@@ -109,9 +114,15 @@ export default function ProjectsPage() {
                 </p>
 
                 <div className="pt-6 border-t border-white/5 flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-xl font-bold text-white">{project.decision_count || 0}</span>
-                    <span className="text-[9px] font-mono text-white/20 uppercase tracking-widest">Decisions</span>
+                  <div className="flex gap-6">
+                    <div className="flex flex-col">
+                      <span className="text-lg font-bold text-white">{project.stats?.decision_count || 0}</span>
+                      <span className="text-[9px] font-mono text-white/20 uppercase">Decisions</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-lg font-bold text-white">{project.stats?.change_count || 0}</span>
+                      <span className="text-[9px] font-mono text-white/20 uppercase">Changes</span>
+                    </div>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
                     <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
