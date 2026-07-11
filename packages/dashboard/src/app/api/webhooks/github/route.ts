@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
       await handlePush(body);
     } else if (event === 'pull_request') {
       await handlePullRequest(body);
+    } else if (event === 'installation') {
+      await handleInstallation(body);
     }
 
     return NextResponse.json({ success: true });
@@ -68,6 +70,49 @@ interface GitHubPullRequestEvent {
   repository: {
     html_url: string;
   };
+}
+
+interface GitHubInstallationEvent {
+  action: 'created' | 'deleted' | 'new_permissions_accepted' | 'suspend' | 'unsuspend';
+  installation: {
+    id: number;
+    account: {
+      id: number;
+      login: string;
+      type: string;
+    };
+    repository_selection: string;
+  };
+}
+
+async function handleInstallation(body: GitHubInstallationEvent) {
+  const { action, installation } = body;
+
+  if (action === 'created' || action === 'new_permissions_accepted') {
+    const { error } = await supabase.from('github_installations').upsert({
+      id: installation.id.toString(),
+      account_id: installation.account.id.toString(),
+      account_login: installation.account.login,
+      target_type: installation.account.type,
+      repository_selection: installation.repository_selection,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (error) throw error;
+  } else if (action === 'deleted') {
+    const { error } = await supabase
+      .from('github_installations')
+      .delete()
+      .eq('id', installation.id.toString());
+
+    if (error) throw error;
+
+    // Also clear installation_id from projects
+    await supabase
+      .from('projects')
+      .update({ github_installation_id: null })
+      .eq('github_installation_id', installation.id.toString());
+  }
 }
 
 async function handlePush(body: GitHubPushEvent) {
