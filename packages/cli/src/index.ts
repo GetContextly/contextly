@@ -14,6 +14,8 @@ import ora from 'ora';
 import SingleBar from 'cli-progress';
 const Table = require('terminal-table');
 
+import { getGlobalConfig, setGlobalConfig } from './config';
+
 const program = new Command();
 
 function getServiceKey() {
@@ -200,6 +202,35 @@ program
       console.log(chalk.green('\nEverything looks good! Keep shipping.'));
     } else {
       console.log(chalk.yellow('\nSome checks failed. Please resolve them to ensure full functionality.'));
+    }
+  });
+
+program
+  .command('config')
+  .description('Manage global CLI configuration')
+  .option('--set <key=value>', 'Set a config value')
+  .option('--get <key>', 'Get a config value')
+  .option('--list', 'Show all config values')
+  .action((options) => {
+    if (options.list) {
+      const config = getGlobalConfig();
+      console.log(chalk.bold('\nGlobal Configuration:\n'));
+      Object.entries(config).forEach(([k, v]) => {
+        console.log(`${chalk.cyan(k)}: ${v}`);
+      });
+      return;
+    }
+
+    if (options.get) {
+      const config = getGlobalConfig() as any;
+      console.log(config[options.get] || 'Key not found');
+      return;
+    }
+
+    if (options.set) {
+      const [key, value] = options.set.split('=');
+      setGlobalConfig({ [key]: value });
+      console.log(chalk.green(`✅ Updated ${key} to ${value}`));
     }
   });
 
