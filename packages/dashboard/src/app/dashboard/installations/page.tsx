@@ -2,11 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useSearchParams } from 'next/navigation';
+
+interface Installation {
+  id: string;
+  account_login: string;
+  target_type: string;
+  repository_selection: string;
+}
 
 export default function GitHubInstallationsPage() {
-  const searchParams = useSearchParams();
-  const [installations, setInstallations] = useState<any[]>([]);
+  const [installations, setInstallations] = useState<Installation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

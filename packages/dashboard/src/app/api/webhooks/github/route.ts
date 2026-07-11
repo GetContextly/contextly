@@ -33,13 +33,44 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Webhook error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-async function handlePush(body: any) {
+interface GitHubCommit {
+  id: string;
+  message: string;
+  timestamp: string;
+  author: {
+    name: string;
+    email: string;
+  };
+}
+
+interface GitHubPushEvent {
+  repository: {
+    html_url: string;
+  };
+  commits: GitHubCommit[];
+}
+
+interface GitHubPullRequestEvent {
+  action: string;
+  pull_request: {
+    number: number;
+    title: string;
+    body: string | null;
+    merged: boolean;
+  };
+  repository: {
+    html_url: string;
+  };
+}
+
+async function handlePush(body: GitHubPushEvent) {
   const repoUrl = body.repository.html_url;
   const commits = body.commits;
 
@@ -56,7 +87,7 @@ async function handlePush(body: any) {
   }
 
   // Log each commit as a change
-  const changes = commits.map((commit: any) => ({
+  const changes = commits.map((commit) => ({
     project_id: project.id,
     summary: commit.message,
     commit_sha: commit.id,
@@ -67,7 +98,7 @@ async function handlePush(body: any) {
   if (insertError) throw insertError;
 }
 
-async function handlePullRequest(body: any) {
+async function handlePullRequest(body: GitHubPullRequestEvent) {
   if (body.action !== 'closed' || !body.pull_request.merged) {
     return;
   }

@@ -62,8 +62,8 @@ export const Problem = () => {
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
               >
-                The context problem isn't an AI problem —<br />
-                it's an infrastructure problem.
+                The context problem isn&apos;t an AI problem —<br />
+                it&apos;s an infrastructure problem.
               </motion.p>
             </div>
           </div>

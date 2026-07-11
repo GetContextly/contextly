@@ -21,7 +21,7 @@ export const Objection = () => {
               <div className="col-left">
                 <span className="eyebrow">The Hard Truth</span>
                 <blockquote className="big-quote">
-                  "Can't I just<br />prompt my AI?"
+                  &quot;Can&apos;t I just<br />prompt my AI?&quot;
                 </blockquote>
               </div>
 

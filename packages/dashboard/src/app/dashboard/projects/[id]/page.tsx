@@ -4,11 +4,32 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { use } from 'react';
 
+interface Project {
+  id: string;
+  name: string;
+  mcp_token: string;
+}
+
+interface Decision {
+  id: string;
+  summary: string;
+  reasoning: string;
+  created_at: string;
+  related_files: string[];
+}
+
+interface Change {
+  id: string;
+  summary: string;
+  commit_sha: string;
+  created_at: string;
+}
+
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [project, setProject] = useState<any>(null);
-  const [decisions, setDecisions] = useState<any[]>([]);
-  const [changes, setChanges] = useState<any[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
+  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [changes, setChanges] = useState<Change[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

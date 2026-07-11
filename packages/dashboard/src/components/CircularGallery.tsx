@@ -21,9 +21,9 @@ interface CircularGalleryProps {
   scrollEase?: number;
 }
 
-function debounce(func: Function, wait: number) {
+function debounce<T extends (...args: unknown[]) => unknown>(func: T, wait: number) {
   let timeout: ReturnType<typeof setTimeout>;
-  return function (this: any, ...args: any[]) {
+  return function (this: unknown, ...args: Parameters<T>) {
     clearTimeout(timeout);
     timeout = setTimeout(() => func.apply(this, args), wait);
   };
@@ -33,11 +33,14 @@ function lerp(p1: number, p2: number, t: number) {
   return p1 + (p2 - p1) * t;
 }
 
-function autoBind(instance: any) {
+function autoBind(instance: object) {
   const proto = Object.getPrototypeOf(instance);
   Object.getOwnPropertyNames(proto).forEach(key => {
-    if (key !== 'constructor' && typeof instance[key] === 'function') {
-      instance[key] = instance[key].bind(instance);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const value = (instance as any)[key];
+    if (key !== 'constructor' && typeof value === 'function') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (instance as any)[key] = value.bind(instance);
     }
   });
 }
@@ -97,11 +100,13 @@ async function loadCustomFont(fontUrl: string) {
 
 async function resolveFont(font: string, fontUrl?: string) {
   const effectiveUrl = fontUrl || (font === DEFAULT_FONT ? DEFAULT_FONT_URL : null);
+  const fonts = document.fonts as unknown as { load?: (font: string) => Promise<void>; ready?: Promise<void> };
+
   if (!effectiveUrl) {
-    if (document.fonts && (document.fonts as any).load) {
+    if (fonts && fonts.load) {
       try {
-        await (document.fonts as any).load(font);
-        await (document.fonts as any).ready;
+        await fonts.load(font);
+        if (fonts.ready) await fonts.ready;
       } catch {
         // Ignore
       }
@@ -113,9 +118,9 @@ async function resolveFont(font: string, fontUrl?: string) {
     const sizeMatch = font.match(/^\s*(.*?\d+px)/);
     const prefix = sizeMatch ? sizeMatch[1].trim() : 'bold 30px';
     const resolved = `${prefix} "${family}"`;
-    if (document.fonts && (document.fonts as any).load) {
+    if (fonts && fonts.load) {
       try {
-        await (document.fonts as any).load(resolved);
+        await fonts.load(resolved);
       } catch {
         // Ignore
       }
@@ -132,7 +137,7 @@ function getFontSize(font: string) {
   return match ? parseInt(match[1], 10) : 30;
 }
 
-function createTextTexture(gl: any, text: string, font = 'bold 30px monospace', color = 'black') {
+function createTextTexture(gl: WebGLRenderingContext, text: string, font = 'bold 30px monospace', color = 'black') {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d')!;
   context.font = font;
@@ -148,20 +153,29 @@ function createTextTexture(gl: any, text: string, font = 'bold 30px monospace', 
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.fillText(text, canvas.width / 2, canvas.height / 2);
   const texture = new Texture(gl, { generateMipmaps: false });
-  texture.image = canvas;
+  texture.image = (canvas as unknown) as HTMLImageElement;
   return { texture, width: canvas.width, height: canvas.height };
 }
 
+interface TitleParams {
+  gl: WebGLRenderingContext;
+  plane: Mesh;
+  renderer: Renderer;
+  text: string;
+  textColor?: string;
+  font?: string;
+}
+
 class Title {
-  gl: any;
-  plane: any;
-  renderer: any;
+  gl: WebGLRenderingContext;
+  plane: Mesh;
+  renderer: Renderer;
   text: string;
   textColor: string;
   font: string;
-  mesh: any;
+  mesh!: Mesh;
 
-  constructor({ gl, plane, renderer, text, textColor = '#545050', font = '30px sans-serif' }: any) {
+  constructor({ gl, plane, renderer, text, textColor = '#545050', font = '30px sans-serif' }: TitleParams) {
     autoBind(this);
     this.gl = gl;
     this.plane = plane;
@@ -209,25 +223,42 @@ class Title {
   }
 }
 
-class Media {
-  extra: number = 0;
-  geometry: any;
-  gl: any;
+interface MediaParams {
+  geometry: Plane;
+  gl: WebGLRenderingContext;
   image: string;
   index: number;
   length: number;
-  renderer: any;
-  scene: any;
-  screen: any;
+  renderer: Renderer;
+  scene: Transform;
+  screen: { width: number; height: number };
   text: string;
-  viewport: any;
+  viewport: { width: number; height: number };
+  bend: number;
+  textColor: string;
+  borderRadius?: number;
+  font: string;
+}
+
+class Media {
+  extra: number = 0;
+  geometry: Plane;
+  gl: WebGLRenderingContext;
+  image: string;
+  index: number;
+  length: number;
+  renderer: Renderer;
+  scene: Transform;
+  screen: { width: number; height: number };
+  text: string;
+  viewport: { width: number; height: number };
   bend: number;
   textColor: string;
   borderRadius: number;
   font: string;
-  program: any;
-  plane: any;
-  title: any;
+  program!: Program;
+  plane!: Mesh;
+  title!: Title;
   scale: number = 1;
   padding: number = 2;
   width: number = 0;
@@ -252,7 +283,7 @@ class Media {
     textColor,
     borderRadius = 0,
     font
-  }: any) {
+  }: MediaParams) {
     this.geometry = geometry;
     this.gl = gl;
     this.image = image;
@@ -363,7 +394,7 @@ class Media {
       font: this.font
     });
   }
-  update(scroll: any, direction: string) {
+  update(scroll: { current: number; last: number }, direction: string) {
     this.plane.position.x = this.x - scroll.current - this.extra;
 
     const x = this.plane.position.x;
@@ -404,7 +435,7 @@ class Media {
       this.isBefore = this.isAfter = false;
     }
   }
-  onResize({ screen, viewport }: any = {}) {
+  onResize({ screen, viewport }: { screen?: { width: number; height: number }; viewport?: { width: number; height: number } } = {}) {
     if (screen) this.screen = screen;
     if (viewport) {
       this.viewport = viewport;
@@ -426,27 +457,27 @@ class Media {
 class App {
   container: HTMLElement;
   scrollSpeed: number;
-  scroll: any;
-  onCheckDebounce: any;
-  renderer: any;
-  gl: any;
-  camera: any;
-  scene: any;
-  planeGeometry: any;
-  mediasImages: any[] = [];
-  medias: any[] = [];
-  screen: any;
-  viewport: any;
+  scroll: { ease: number; current: number; target: number; last: number; position?: number };
+  onCheckDebounce: () => void;
+  renderer!: Renderer;
+  gl!: WebGLRenderingContext;
+  camera!: Camera;
+  scene!: Transform;
+  planeGeometry!: Plane;
+  mediasImages: GalleryItem[] = [];
+  medias: Media[] = [];
+  screen: { width: number; height: number } = { width: 0, height: 0 };
+  viewport: { width: number; height: number } = { width: 0, height: 0 };
   isDown: boolean = false;
   start: number = 0;
   raf: number = 0;
 
-  boundOnResize: any;
-  boundOnWheel: any;
-  boundOnTouchDown: any;
-  boundOnTouchMove: any;
-  boundOnTouchUp: any;
-  boundOnKeyDown: any;
+  boundOnResize!: () => void;
+  boundOnWheel!: (e: WheelEvent) => void;
+  boundOnTouchDown!: (e: MouseEvent | TouchEvent) => void;
+  boundOnTouchMove!: (e: MouseEvent | TouchEvent) => void;
+  boundOnTouchUp!: () => void;
+  boundOnKeyDown!: (e: KeyboardEvent) => void;
 
   constructor(
     container: HTMLElement,
@@ -458,7 +489,15 @@ class App {
       font = 'bold 30px Figtree',
       scrollSpeed = 2,
       scrollEase = 0.05
-    }: any = {}
+    }: {
+      items?: GalleryItem[];
+      bend?: number;
+      textColor?: string;
+      borderRadius?: number;
+      font?: string;
+      scrollSpeed?: number;
+      scrollEase?: number;
+    } = {}
   ) {
     document.documentElement.classList.remove('no-js');
     this.container = container;
@@ -470,7 +509,7 @@ class App {
     this.createScene();
     this.onResize();
     this.createGeometry();
-    this.createMedias(items, bend, textColor, borderRadius, font);
+    this.createMedias(items || [], bend, textColor, borderRadius, font);
     this.update();
     this.addEventListeners();
   }
@@ -498,7 +537,7 @@ class App {
       widthSegments: 100
     });
   }
-  createMedias(items: any[], bend = 1, textColor: string, borderRadius: number, font: string) {
+  createMedias(items: GalleryItem[], bend = 1, textColor: string, borderRadius: number, font: string) {
     const defaultItems = [
       { image: `https://picsum.photos/seed/1/800/600?grayscale`, text: 'Bridge' },
       { image: `https://picsum.photos/seed/2/800/600?grayscale`, text: 'Desk Setup' },
@@ -534,27 +573,36 @@ class App {
       });
     });
   }
-  onTouchDown(e: any) {
+  onTouchDown(e: MouseEvent | TouchEvent) {
     this.isDown = true;
     this.scroll.position = this.scroll.current;
-    this.start = e.touches ? e.touches[0].clientX : e.clientX;
+    if ('touches' in e) {
+      this.start = e.touches[0].clientX;
+    } else {
+      this.start = e.clientX;
+    }
   }
-  onTouchMove(e: any) {
+  onTouchMove(e: MouseEvent | TouchEvent) {
     if (!this.isDown) return;
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    let x = 0;
+    if ('touches' in e) {
+      x = e.touches[0].clientX;
+    } else {
+      x = e.clientX;
+    }
     const distance = (this.start - x) * (this.scrollSpeed * 0.025);
-    this.scroll.target = this.scroll.position + distance;
+    this.scroll.target = (this.scroll.position || 0) + distance;
   }
   onTouchUp() {
     this.isDown = false;
     this.onCheck();
   }
-  onWheel(e: any) {
-    const delta = e.deltaY || e.wheelDelta || e.detail;
+  onWheel(e: WheelEvent) {
+    const delta = e.deltaY;
     this.scroll.target += (delta > 0 ? this.scrollSpeed : -this.scrollSpeed) * 0.2;
     this.onCheckDebounce();
   }
-  onKeyDown(e: any) {
+  onKeyDown(e: KeyboardEvent) {
     switch (e.key) {
       case 'ArrowRight':
         e.preventDefault();
@@ -622,7 +670,6 @@ class App {
     this.boundOnKeyDown = this.onKeyDown.bind(this);
 
     window.addEventListener('resize', this.boundOnResize);
-    window.addEventListener('mousewheel', this.boundOnWheel);
     window.addEventListener('wheel', this.boundOnWheel);
     window.addEventListener('mousedown', this.boundOnTouchDown);
     window.addEventListener('mousemove', this.boundOnTouchMove);
@@ -636,7 +683,6 @@ class App {
   destroy() {
     window.cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.boundOnResize);
-    window.removeEventListener('mousewheel', this.boundOnWheel);
     window.removeEventListener('wheel', this.boundOnWheel);
     window.removeEventListener('mousedown', this.boundOnTouchDown);
     window.removeEventListener('mousemove', this.boundOnTouchMove);

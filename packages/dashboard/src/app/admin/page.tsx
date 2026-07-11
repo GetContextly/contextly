@@ -3,8 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+interface SystemStats {
+  users: number | null;
+  projects: number | null;
+  decisions: number | null;
+  changes: number | null;
+}
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

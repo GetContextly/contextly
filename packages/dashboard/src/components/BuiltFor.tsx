@@ -161,13 +161,13 @@ export const BuiltFor = () => {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="section-eyebrow">
-            <span className="eyebrow-text">Who It's For</span>
+            <span className="eyebrow-text">Who It&apos;s For</span>
           </div>
           <h2 className="section-heading">
             Built for the next<br />generation of shipping.
           </h2>
           <p className="section-sub">
-            Whether you're a solo builder or a distributed team, Contextly keeps every agent in sync.
+            Whether you&apos;re a solo builder or a distributed team, Contextly keeps every agent in sync.
           </p>
         </motion.div>
 
