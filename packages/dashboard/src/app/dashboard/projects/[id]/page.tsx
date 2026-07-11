@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
-import { use } from 'react';
+import { motion } from 'framer-motion';
 
 interface Project {
   id: string;
   name: string;
   mcp_token: string;
+  github_repo_url: string | null;
 }
 
 interface Decision {
@@ -16,6 +17,7 @@ interface Decision {
   reasoning: string;
   created_at: string;
   related_files: string[];
+  source: string;
 }
 
 interface Change {
@@ -31,13 +33,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [changes, setChanges] = useState<Change[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
       const [projRes, decRes, changeRes] = await Promise.all([
         supabase.from('projects').select('*').eq('id', id).single(),
         supabase.from('decisions').select('*').eq('project_id', id).order('created_at', { ascending: false }),
-        supabase.from('changes').select('*').eq('project_id', id).order('created_at', { ascending: false })
+        supabase.from('changes').select('*').eq('project_id', id).order('created_at', { ascending: false }).limit(20)
       ]);
 
       if (projRes.data) setProject(projRes.data);
@@ -50,233 +53,171 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     fetchData();
   }, [id]);
 
-  if (loading) return <div className="loading">Loading project details...</div>;
-  if (!project) return <div>Project not found.</div>;
+  const copyToken = () => {
+    if (project?.mcp_token) {
+      navigator.clipboard.writeText(project.mcp_token);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 border-2 border-signal-green border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!project) return <div className="text-white/40">Project not found.</div>;
 
   return (
-    <div className="project-detail">
-      <div className="header">
-        <div className="breadcrumb">Projects / {project.name}</div>
-        <h1>{project.name}</h1>
-        <div className="mcp-token-box">
-          <span>MCP Token: <code>{project.mcp_token}</code></span>
+    <div className="max-w-7xl mx-auto pb-20">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-white/20 mb-8">
+        <a href="/dashboard" className="hover:text-signal-green transition-colors">Projects</a>
+        <span>/</span>
+        <span className="text-white/60">{project.name}</span>
+      </nav>
+
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+        <div>
+          <div className="flex items-center gap-4 mb-4">
+            <h1 className="heading-m text-white">{project.name}</h1>
+            <span className="px-3 py-1 rounded-full bg-signal-green/10 text-signal-green text-[10px] font-mono uppercase tracking-widest border border-signal-green/20">
+              Live Capture
+            </span>
+          </div>
+          <p className="text-white/40 font-mono text-xs">{project.github_repo_url || 'No repository linked'}</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="glass-dark rounded-2xl p-1 pl-6 flex items-center gap-4 border-white/5">
+             <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">MCP TOKEN</span>
+             <code className="text-xs text-signal-green/70 font-mono truncate max-w-[120px]">
+               {copied ? 'COPIED!' : project.mcp_token}
+             </code>
+             <button
+               onClick={copyToken}
+               className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/60"
+             >
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+               </svg>
+             </button>
+          </div>
+          <button className="px-6 py-3 rounded-xl bg-signal-green text-black font-bold text-sm shadow-[0_0_20px_rgba(52,255,179,0.2)] hover:scale-105 active:scale-95 transition-all">
+            Configure Agent
+          </button>
         </div>
       </div>
 
-      <div className="stats-row">
-        <div className="stat-card">
-          <span className="label">Total Decisions</span>
-          <span className="value">{decisions.length}</span>
-        </div>
-        <div className="stat-card">
-          <span className="label">Total Changes</span>
-          <span className="value">{changes.length}</span>
-        </div>
-        <div className="stat-card">
-          <span className="label">Active Session</span>
-          <span className="value status">Online</span>
-        </div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+        {[
+          { label: 'Total Decisions', value: decisions.length, icon: '🧠' },
+          { label: 'Git Syncs', value: changes.length, icon: '🔄' },
+          { label: 'Contributors', value: '1', icon: '👤' },
+          { label: 'Memory Health', value: '98%', icon: '💎' },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="glass-dark rounded-3xl p-8 border-white/5 relative overflow-hidden group"
+          >
+            <div className="absolute top-0 right-0 p-6 text-4xl opacity-10 group-hover:opacity-20 transition-opacity">
+              {stat.icon}
+            </div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/20 mb-2">{stat.label}</p>
+            <p className="text-3xl font-display font-bold">{stat.value}</p>
+          </motion.div>
+        ))}
       </div>
 
-      <div className="content-grid">
-        <section className="decisions-section">
-          <h2>Architectural Decisions</h2>
-          <div className="decision-list">
+      {/* Main Grid */}
+      <div className="grid lg:grid-cols-3 gap-10">
+        {/* Decisions List */}
+        <div className="lg:col-span-2 space-y-8">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-display font-bold">Architectural Memory</h2>
+            <button className="text-xs font-mono text-signal-green/60 hover:text-signal-green underline underline-offset-4">View All</button>
+          </div>
+
+          <div className="space-y-4">
             {decisions.length === 0 ? (
-              <p className="empty-msg">No decisions logged yet.</p>
+               <div className="p-12 text-center glass-dark rounded-[2rem] border-white/5 border-dashed border-2">
+                 <p className="text-white/20 font-mono text-sm">No architectural decisions identified yet.</p>
+               </div>
             ) : (
-              decisions.map(d => (
-                <div key={d.id} className="decision-item">
-                  <div className="item-header">
-                    <h4>{d.summary}</h4>
-                    <span>{new Date(d.created_at).toLocaleDateString()}</span>
+              decisions.map((d, i) => (
+                <motion.div
+                  key={d.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + (i * 0.05) }}
+                  className="glass-dark rounded-[2rem] p-8 border-white/5 hover:border-signal-green/20 transition-all group"
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-3">
+                       <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs">
+                         {d.source === 'git_commit' ? '⚡' : '✍'}
+                       </span>
+                       <h3 className="text-lg font-bold group-hover:text-signal-green transition-colors">{d.summary}</h3>
+                    </div>
+                    <span className="text-[10px] font-mono text-white/20 uppercase">{new Date(d.created_at).toLocaleDateString()}</span>
                   </div>
-                  <p>{d.reasoning}</p>
-                  <div className="files">
-                    {d.related_files?.map((f: string) => <span key={f} className="file-tag">{f}</span>)}
+                  <p className="text-white/40 text-sm leading-relaxed mb-8 line-clamp-3">
+                    {d.reasoning}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {d.related_files?.slice(0, 4).map(file => (
+                      <span key={file} className="px-2 py-1 rounded bg-white/5 text-[9px] font-mono text-white/30 border border-white/5">
+                        {file.split('/').pop()}
+                      </span>
+                    ))}
+                    {d.related_files?.length > 4 && (
+                       <span className="px-2 py-1 rounded bg-white/5 text-[9px] font-mono text-white/30">
+                         +{d.related_files.length - 4} more
+                       </span>
+                    )}
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
           </div>
-        </section>
+        </div>
 
-        <section className="changes-section">
-          <h2>Recent Activity</h2>
-          <div className="change-list">
-            {changes.length === 0 ? (
-              <p className="empty-msg">No activity synced yet.</p>
-            ) : (
-              changes.map(c => (
-                <div key={c.id} className="change-item">
-                  <div className="commit-sha">{c.commit_sha?.substring(0, 7) || 'manual'}</div>
-                  <div className="change-info">
-                    <p>{c.summary}</p>
-                    <span>{new Date(c.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+        {/* Recent Activity Feed */}
+        <div className="space-y-8">
+           <h2 className="text-xl font-display font-bold">Recent Syncs</h2>
+           <div className="glass-dark rounded-[2.5rem] p-8 border-white/5 relative overflow-hidden">
+             <div className="absolute left-[47px] top-12 bottom-12 w-px bg-white/5" />
+
+             <div className="space-y-10 relative">
+               {changes.map((c, i) => (
+                 <div key={c.id} className="flex gap-6 items-start">
+                   <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 z-10">
+                     <span className="text-xs">◈</span>
+                   </div>
+                   <div className="min-w-0">
+                     <p className="text-xs font-bold text-white/80 truncate mb-1">{c.summary}</p>
+                     <div className="flex items-center gap-3">
+                       <span className="text-[9px] font-mono text-signal-green/40">{c.commit_sha?.substring(0, 7)}</span>
+                       <span className="text-[9px] font-mono text-white/20">{new Date(c.created_at).toLocaleDateString()}</span>
+                     </div>
+                   </div>
+                 </div>
+               ))}
+             </div>
+
+             <button className="w-full mt-10 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-[10px] font-mono uppercase tracking-widest text-white/40 transition-colors">
+               Load More Activity
+             </button>
+           </div>
+        </div>
       </div>
-
-      <style jsx>{`
-        .header {
-          margin-bottom: 40px;
-        }
-
-        .breadcrumb {
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.3);
-          margin-bottom: 12px;
-        }
-
-        h1 {
-          font-size: 32px;
-          margin-bottom: 16px;
-        }
-
-        .mcp-token-box {
-          background: rgba(52, 255, 179, 0.05);
-          border: 1px solid rgba(52, 255, 179, 0.1);
-          padding: 12px 20px;
-          border-radius: 8px;
-          display: inline-block;
-          font-size: 13px;
-        }
-
-        .mcp-token-box code {
-          color: #34FFB3;
-          margin-left: 12px;
-          font-family: var(--font-mono);
-        }
-
-        .stats-row {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 20px;
-          margin-bottom: 40px;
-        }
-
-        .stat-card {
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          padding: 24px;
-          border-radius: 12px;
-        }
-
-        .stat-card .label {
-          display: block;
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.4);
-          margin-bottom: 8px;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .stat-card .value {
-          font-size: 24px;
-          font-weight: 700;
-        }
-
-        .stat-card .value.status {
-          color: #34FFB3;
-        }
-
-        .content-grid {
-          display: grid;
-          grid-template-columns: 2fr 1fr;
-          gap: 40px;
-        }
-
-        h2 {
-          font-size: 18px;
-          margin-bottom: 24px;
-          color: rgba(255, 255, 255, 0.6);
-        }
-
-        .decision-item {
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          padding: 24px;
-          border-radius: 12px;
-          margin-bottom: 16px;
-        }
-
-        .item-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-
-        .item-header h4 {
-          font-size: 16px;
-          font-weight: 600;
-        }
-
-        .item-header span {
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.3);
-        }
-
-        .decision-item p {
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.6);
-          line-height: 1.6;
-          margin-bottom: 16px;
-        }
-
-        .file-tag {
-          font-family: var(--font-mono);
-          font-size: 11px;
-          background: rgba(52, 255, 179, 0.1);
-          color: #34FFB3;
-          padding: 2px 6px;
-          border-radius: 4px;
-          margin-right: 8px;
-        }
-
-        .change-item {
-          display: flex;
-          gap: 16px;
-          margin-bottom: 20px;
-          padding-bottom: 20px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .commit-sha {
-          font-family: var(--font-mono);
-          font-size: 11px;
-          background: rgba(255, 255, 255, 0.05);
-          padding: 4px 8px;
-          border-radius: 4px;
-          height: fit-content;
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .change-info p {
-          font-size: 13px;
-          margin-bottom: 4px;
-        }
-
-        .change-info span {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.3);
-        }
-
-        .empty-msg {
-          color: rgba(255, 255, 255, 0.2);
-          font-style: italic;
-          font-size: 14px;
-        }
-
-        .loading {
-          padding: 100px;
-          text-align: center;
-          color: rgba(255, 255, 255, 0.4);
-        }
-      `}</style>
     </div>
   );
 }
