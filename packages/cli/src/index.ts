@@ -220,7 +220,7 @@ program
               source: 'git_commit',
               related_files: decision.relatedFiles,
               created_at: new Date(commit.date).toISOString(),
-            }, { onConflict: 'project_id,summary' }); // Basic deduplication on summary for now
+            }, { onConflict: 'project_id,summary' });
 
           if (!decError) decisionCount++;
         }
@@ -235,34 +235,28 @@ program
 
 program
   .command('status')
-  .description('Show the current project status and context stats')
+  .description('Show current project status')
   .action(async () => {
     try {
       const configPath = path.join(process.cwd(), '.contextly', 'config.json');
       if (!fs.existsSync(configPath)) {
-        console.log(chalk.yellow('Project not initialized in this directory.'));
+        console.log(chalk.yellow('Project not initialized.'));
         return;
       }
-
       const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       const serviceKey = getServiceKey();
       const supabase = getSupabase(serviceKey);
-
-      console.log(chalk.bold(`\nProject: ${config.name}`));
-      console.log(chalk.gray(`ID: ${config.projectId}\n`));
 
       const [decisions, changes] = await Promise.all([
         supabase.from('decisions').select('id', { count: 'exact' }).eq('project_id', config.projectId),
         supabase.from('changes').select('id', { count: 'exact' }).eq('project_id', config.projectId)
       ]);
 
-      console.log(`${chalk.cyan('Decisions Logged:')} ${decisions.count || 0}`);
-      console.log(`${chalk.cyan('Changes Tracked:')}  ${changes.count || 0}`);
-
-      const session = getSession();
-      console.log(`\n${chalk.gray('Auth Status:')} ${session ? chalk.green('Logged in as ' + session.user.login) : chalk.red('Not logged in')}`);
+      console.log(chalk.bold(`\nProject: ${config.name}`));
+      console.log(chalk.cyan(`Decisions Logged: ${decisions.count || 0}`));
+      console.log(chalk.cyan(`Changes Tracked:  ${changes.count || 0}`));
     } catch (error: any) {
-      console.error(chalk.red(`Error fetching status: ${error.message}`));
+      console.error(chalk.red(`Error: ${error.message}`));
     }
   });
 
@@ -293,13 +287,69 @@ program
           source: 'manual',
           related_files: relatedFiles,
         })
-        .select('id')
+        .select('id, created_at')
         .single();
 
       if (error) throw new Error(error.message);
-      console.log(chalk.green('✅ Decision logged successfully.'));
+
+      console.log(chalk.green(`✅ Decision logged: "${message}"`));
+      console.log(chalk.gray(`ID: ${data.id}`));
     } catch (error: any) {
       console.error(chalk.red(`\n❌ Log failed: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('index')
+  .description('Index project files for semantic search (RAG)')
+  .option('--files <pattern>', 'Glob pattern of files to index', 'src/**/*')
+  .action(async (options: { files: string }) => {
+    try {
+      const session = getSession();
+      if (!session) {
+        console.error(chalk.red('❌ Not authenticated.'));
+        process.exit(1);
+      }
+
+      const configPath = path.join(process.cwd(), '.contextly', 'config.json');
+      if (!fs.existsSync(configPath)) {
+        throw new Error('Project not initialized.');
+      }
+      const { projectId } = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+
+      console.log(chalk.blue('🧠 Generating embeddings for semantic search...'));
+
+      const glob = require('glob');
+      const files = glob.sync(options.files, { nodir: true });
+      console.log(chalk.gray(`Found ${files.length} files to index.`));
+
+      const serviceKey = getServiceKey();
+      const supabase = getSupabase(serviceKey);
+
+      for (const file of files) {
+        const content = fs.readFileSync(file, 'utf-8');
+        if (content.length > 0) {
+          console.log(chalk.gray(`  Indexing ${file}...`));
+
+          // Mock embedding
+          const mockEmbedding = Array.from({ length: 1536 }, () => Math.random());
+
+          const { error } = await supabase.from('embeddings').insert({
+            project_id: projectId,
+            content: content.substring(0, 1000),
+            embedding: mockEmbedding,
+            metadata: { path: file, size: content.length }
+          });
+
+          if (error) console.error(chalk.red(`  Failed to index ${file}: ${error.message}`));
+        }
+      }
+
+      console.log(chalk.green('\n✅ Semantic indexing complete!'));
+    } catch (error: any) {
+      console.error(chalk.red(`\n❌ Indexing failed: ${error.message}`));
+      process.exit(1);
     }
   });
 

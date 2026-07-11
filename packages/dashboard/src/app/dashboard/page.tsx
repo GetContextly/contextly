@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 interface Project {
   id: string;
   name: string;
   github_repo_url: string | null;
   created_at: string;
+  decision_count?: number;
 }
 
 export default function ProjectsPage() {
@@ -17,13 +19,20 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     async function fetchProjects() {
+      // Fetch projects and counts in one go if possible, or separate
       const { data, error } = await supabase
         .from('projects')
-        .select('*')
+        .select(`
+          *,
+          decisions:decisions(count)
+        `)
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        setProjects(data);
+        setProjects(data.map((p: any) => ({
+          ...p,
+          decision_count: p.decisions?.[0]?.count || 0
+        })));
       }
       setLoading(false);
     }
@@ -32,165 +41,89 @@ export default function ProjectsPage() {
   }, []);
 
   return (
-    <div className="projects-view">
-      <div className="view-header">
+    <div className="max-w-6xl mx-auto">
+      <div className="flex justify-between items-center mb-12">
         <div>
-          <h1>Projects</h1>
-          <p>Manage your architectural memory hubs.</p>
+          <h1 className="heading-m text-white mb-2">Projects</h1>
+          <p className="text-white/40 text-sm font-mono uppercase tracking-widest">Architectural Memory Hubs</p>
         </div>
-        <button className="btn-primary">New Project</button>
+        <button className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 hover:border-signal-green/50 hover:bg-signal-green/5 text-sm font-bold transition-all group">
+          <span className="text-signal-green group-hover:mr-2 transition-all">+</span> Create New Project
+        </button>
       </div>
 
       {loading ? (
-        <div className="loading">Loading projects...</div>
-      ) : projects.length === 0 ? (
-        <div className="empty-state">
-          <h3>No projects found</h3>
-          <p>Initialize a project using the Contextly CLI to see it here.</p>
-          <code>npm install -g @contextly/cli && contextly init</code>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-48 rounded-3xl bg-white/[0.02] border border-white/5 animate-pulse" />
+          ))}
         </div>
+      ) : projects.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-dark rounded-[2.5rem] p-20 text-center border-dashed border-2 border-white/5"
+        >
+          <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mx-auto mb-8">
+            <span className="text-4xl opacity-20">📂</span>
+          </div>
+          <h3 className="text-2xl font-display font-bold mb-4">No projects yet</h3>
+          <p className="text-white/40 mb-10 max-w-sm mx-auto">
+            Initialize your first project via the CLI to start capturing architectural context automatically.
+          </p>
+          <div className="inline-flex flex-col items-center gap-4">
+             <code className="px-6 py-3 rounded-2xl bg-black border border-white/10 text-signal-green font-mono text-sm">
+               contextly init
+             </code>
+             <p className="text-[10px] text-white/20 font-mono uppercase">Run this in your project root</p>
+          </div>
+        </motion.div>
       ) : (
-        <div className="project-grid">
-          {projects.map((project) => (
-            <Link href={`/dashboard/projects/${project.id}`} key={project.id} className="project-card">
-              <div className="project-info">
-                <h3>{project.name}</h3>
-                <span className="repo-badge">{project.github_repo_url || 'No repo linked'}</span>
-              </div>
-              <div className="project-meta">
-                <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
-                <div className="status-dot"></div>
-              </div>
-            </Link>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects.map((project, i) => (
+            <motion.div
+              key={project.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <Link
+                href={`/dashboard/projects/${project.id}`}
+                className="group block glass-dark rounded-[2rem] p-8 border-white/5 hover:border-signal-green/30 transition-all hover:translate-y-[-4px]"
+              >
+                <div className="flex justify-between items-start mb-8">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-signal-green/10 transition-colors">
+                    <span className="text-xl opacity-40 group-hover:opacity-100 transition-opacity">◈</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-signal-green shadow-[0_0_8px_#34FFB3]" />
+                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-tighter">Active</span>
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-display font-bold text-white mb-2 group-hover:text-signal-green transition-colors">
+                  {project.name}
+                </h3>
+                <p className="text-xs text-white/30 font-mono truncate mb-6">
+                  {project.github_repo_url?.split('/').pop() || 'No repository linked'}
+                </p>
+
+                <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-xl font-bold text-white">{project.decision_count || 0}</span>
+                    <span className="text-[9px] font-mono text-white/20 uppercase tracking-widest">Decisions</span>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                      <path d="M2.5 7H11.5M11.5 7L7.5 3M11.5 7L7.5 11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-40 group-hover:opacity-100" />
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
           ))}
         </div>
       )}
-
-      <style jsx>{`
-        .projects-view {
-          max-width: 1000px;
-        }
-
-        .view-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          margin-bottom: 48px;
-        }
-
-        h1 {
-          font-size: 32px;
-          font-weight: 700;
-          margin-bottom: 8px;
-        }
-
-        .view-header p {
-          color: rgba(255, 255, 255, 0.4);
-        }
-
-        .btn-primary {
-          background: #34FFB3;
-          color: #0A0B0F;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 6px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: transform 0.2s;
-        }
-
-        .btn-primary:hover {
-          transform: translateY(-2px);
-        }
-
-        .project-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 24px;
-        }
-
-        .project-card {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          border-radius: 12px;
-          padding: 24px;
-          text-decoration: none;
-          color: white;
-          transition: all 0.2s;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          height: 160px;
-        }
-
-        .project-card:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(52, 255, 179, 0.3);
-          transform: translateY(-4px);
-        }
-
-        .project-info h3 {
-          font-size: 18px;
-          margin-bottom: 12px;
-        }
-
-        .repo-badge {
-          font-family: var(--font-mono);
-          font-size: 11px;
-          background: rgba(255, 255, 255, 0.05);
-          padding: 4px 8px;
-          border-radius: 4px;
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .project-meta {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.3);
-        }
-
-        .status-dot {
-          width: 8px;
-          height: 8px;
-          background: #34FFB3;
-          border-radius: 50%;
-          box-shadow: 0 0 10px #34FFB3;
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: 80px 0;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px dashed rgba(255, 255, 255, 0.1);
-          border-radius: 16px;
-        }
-
-        .empty-state h3 {
-          margin-bottom: 12px;
-        }
-
-        .empty-state p {
-          color: rgba(255, 255, 255, 0.4);
-          margin-bottom: 24px;
-        }
-
-        code {
-          background: black;
-          padding: 12px 20px;
-          border-radius: 8px;
-          font-family: var(--font-mono);
-          font-size: 13px;
-          color: #34FFB3;
-        }
-
-        .loading {
-          color: rgba(255, 255, 255, 0.4);
-          text-align: center;
-          padding: 40px;
-        }
-      `}</style>
     </div>
   );
 }

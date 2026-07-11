@@ -1,69 +1,70 @@
-# Contextly
+# Contextly ◈
 
-**Living project memory for AI coding agents.**
+**Persistent Memory for AI Coding Agents.**
 
-Contextly keeps a structured, always-current brief of your project — architecture, decisions, recent changes — that any AI coding agent (Claude Code, Cursor, Copilot, etc.) can query instead of you re-explaining everything every session.
+Contextly gives Claude Code, Cursor, and GitHub Copilot a living project brief — auto-updated from git — so you never lose context when switching tools or starting new sessions.
 
-Domain: getcontextly.dev
-
----
-
-## Why This Exists
-
-- AI coding sessions start from zero context every time
-- Hitting a usage limit mid-task means losing time re-explaining to a fresh session or different tool
-- Manually written summary docs go stale within days
-- Teams using multiple AI tools get inconsistent output because each tool has a different picture of the project
-
-Contextly fixes this by capturing context passively (via git hooks and agent sessions) and serving it through an MCP server any agent can connect to.
+[![Dashboard Deployment](https://github.com/GetContextly/contextly/actions/workflows/dashboard-deploy.yml/badge.svg)](https://github.com/GetContextly/contextly/actions/workflows/dashboard-deploy.yml)
+[![CLI Release](https://github.com/GetContextly/contextly/actions/workflows/cli-release.yml/badge.svg)](https://github.com/GetContextly/contextly/actions/workflows/cli-release.yml)
 
 ---
 
-## Planned Repo Structure
+## 🏗️ Architecture
 
-This is the target monorepo layout once building starts:
+Contextly consists of three core components:
 
-```
-contextly/
-├── packages/
-│   ├── cli/              # npx contextly init — scans repo, sets up hooks
-│   ├── mcp-server/       # The core product — agents connect here
-│   ├── dashboard/        # Next.js web app — team view, timeline, billing
-│   └── shared/           # Shared types/schemas used by all packages
-├── supabase/
-│   └── schema.sql        # Database schema (see DATA_MODEL.md)
-├── docs/                 # This documentation set
-├── .github/
-│   └── workflows/        # CI + dogfooding hooks
-└── package.json          # npm workspaces root
+1.  **Semantic CLI**: Analyzes git history to extract architectural intent and syncs it to the cloud.
+2.  **MCP Server**: A standardized bridge that allows AI agents to query the project's memory semantically.
+3.  **Cloud Dashboard**: A high-end interface for managing projects, team access, and GitHub App integrations.
+
+## 🚀 Getting Started (Developers)
+
+### 1. Global Installation
+```bash
+npm install -g @contextly/cli
 ```
 
-**Suggested build order:**
-1. `shared` — define types first, everything else depends on them
-2. `cli` — get `init` working locally against a test repo
-3. `mcp-server` — wire up one agent (Claude Code) reading from it
-4. `dashboard` — once the data model is proven out via CLI/MCP
+### 2. Authentication
+```bash
+contextly auth
+```
 
----
+### 3. Initialize Project
+```bash
+cd your-project-root
+contextly init
+```
 
-## Documentation Index
+### 4. Sync Context
+```bash
+contextly sync
+```
 
-| Doc | Covers |
-|---|---|
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | How the pieces fit together, sync model, data flow |
-| [AUTH.md](./docs/AUTH.md) | Login, session handling, team/role access |
-| [GITHUB_INTEGRATION.md](./docs/GITHUB_INTEGRATION.md) | Webhooks, hook-triggered capture, PR/commit parsing |
-| [MCP_AGENT_INTEGRATION.md](./docs/MCP_AGENT_INTEGRATION.md) | How Claude Code/Cursor/etc. actually pick up a Contextly project |
-| [DATA_MODEL.md](./docs/DATA_MODEL.md) | Database schema and entity relationships |
-| [ROADMAP.md](./docs/ROADMAP.md) | Build phases, v1 vs v2 feature scope |
+## 🛠️ Development
 
----
+### Prerequisites
+- Node.js v20+
+- Docker (for local Supabase)
+- [Supabase CLI](https://supabase.com/docs/guides/cli)
+- [GitHub CLI](https://cli.github.com/)
 
-## Tech Stack (planned)
+### Local Setup
+Run the automated setup script:
+```bash
+chmod +x scripts/setup_dev.sh
+./scripts/setup_dev.sh
+```
 
-- **CLI:** Node.js, npx-installable
-- **MCP server:** Node.js/TypeScript, `@modelcontextprotocol/sdk`
-- **Dashboard:** Next.js 14 + Tailwind
-- **Database/Auth:** Supabase (Postgres + built-in auth)
-- **Hosting:** Vercel (dashboard + API), separate lightweight host for the MCP server
-- **Git integration:** GitHub Webhooks + GitHub Actions
+### Running the Stack
+- **Dashboard**: `npm run dev -w @contextly/dashboard`
+- **MCP Server**: `npm run dev -w @contextly/mcp-server`
+- **CLI (Dev)**: `cd packages/cli && npm run dev`
+
+## 🛡️ Security & Privacy
+Contextly treats your code as a first-class secret. 
+- **Local Analysis**: Diff parsing happens locally on your machine.
+- **End-to-End Encryption**: Architectural decisions are encrypted at rest.
+- **Zero-Trust MCP**: Agents connect via cryptographically secure, per-project tokens.
+
+## 📄 License
+ISC © [GetContextly](https://getcontextly.dev)
