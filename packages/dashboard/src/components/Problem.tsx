@@ -3,287 +3,137 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const cards = [
-  {
-    title: "The Explainer's Loop",
-    body: "Every time you open a new chat or switch from Claude to Cursor, you spend 5 minutes copying snippets and explaining 'No, we use Supabase, not Firebase.'",
-    tag: 'Time Sink',
-  },
-  {
-    title: 'Context Decay',
-    body: "Your README says one thing, your current branch says another. AI agents hallucinate because they're reading stale documentation from 3 weeks ago.",
-    tag: 'Stale Data',
-  },
-  {
-    title: 'Fragmented Intent',
-    body: "You decided on a specific architectural pattern yesterday. Today, your agent suggests a completely different approach because it doesn't know why you chose the first one.",
-    tag: 'Broken Sync',
-  },
-];
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export const Problem = () => {
   return (
-    <section className="problem-section">
-      <div className="container">
-        <div className="section-grid">
+    <section className="relative py-40 bg-[#06070a] overflow-hidden border-t border-white/5">
+      <div className="container relative z-10">
+        <div className="text-center mb-32">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-signal-green font-mono text-[10px] uppercase tracking-[0.3em] mb-6 font-bold"
+          >
+            The Context Debt
+          </motion.div>
+          <h2 className="text-[clamp(2.5rem,7vw,5.5rem)] font-extrabold leading-[0.9] tracking-tight text-white mb-8">
+            Why AI coding<br />
+            <span className="text-white/20">feels broken.</span>
+          </h2>
+          <p className="max-w-xl mx-auto text-lg text-white/40">
+            The bottleneck isn't the model. It's the data. Without persistent memory,
+            every agent is just a stranger reading your code for the first time.
+          </p>
+        </div>
 
-          {/* LEFT — sticky heading block */}
-          <div className="heading-col">
-            <div className="heading-sticky">
-              {/* Eyebrow pill */}
-              <motion.div
-                className="eyebrow-pill"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              >
-                The Status Quo
-              </motion.div>
+        {/* NON-GENERIC COMPARISON GRID */}
+        <div className="grid lg:grid-cols-2 gap-px bg-white/5 rounded-3xl border border-white/5 overflow-hidden">
 
-              {/* H2 */}
-              <motion.h2
-                className="heading"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              >
-                Why AI coding
-                <br />
-                <span className="heading-dim">feels broken.</span>
-              </motion.h2>
+          {/* LEFT: THE OLD WAY */}
+          <div className="bg-[#08090b] p-12 lg:p-20 relative">
+            <div className="mb-12">
+              <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest border border-white/5 px-3 py-1 rounded-full">
+                Traditional Agents
+              </span>
+            </div>
 
-              {/* Sub-paragraph */}
-              <motion.p
-                className="sub"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              >
-                The context problem isn&apos;t an AI problem —<br />
-                it&apos;s an infrastructure problem.
-              </motion.p>
+            <div className="space-y-10">
+              <div className="group">
+                <h4 className="text-white/80 font-bold mb-3 flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500/40" />
+                  Stale Documentation
+                </h4>
+                <p className="text-white/30 text-sm leading-relaxed">
+                  Your README was last updated 3 months ago. The agent is trying to use
+                  a library you already swapped out for Supabase.
+                </p>
+              </div>
+
+              <div className="group">
+                <h4 className="text-white/80 font-bold mb-3 flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500/40" />
+                  The Explainer's Tax
+                </h4>
+                <p className="text-white/30 text-sm leading-relaxed">
+                  "No, we use a custom auth layer." "Wait, don't use that utility."
+                  You spend 40% of your time correcting the agent.
+                </p>
+              </div>
+
+              <div className="group opacity-50">
+                <div className="p-6 rounded-2xl bg-black/50 border border-white/5 font-mono text-[11px] text-red-500/60 italic">
+                  // TODO: Someone explain why we did this...
+                  // I forgot, and Claude doesn't know either.
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* RIGHT — scrolling cards */}
-          <div className="cards-col">
-            {cards.map((card, i) => (
+          {/* RIGHT: THE CONTEXTLY WAY */}
+          <div className="bg-[#0a0c10] p-12 lg:p-20 relative overflow-hidden group">
+            {/* Subtle Green Glow */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-signal-green/10 blur-[80px] -z-10 group-hover:bg-signal-green/20 transition-all duration-1000" />
+
+            <div className="mb-12">
+              <span className="text-[10px] font-mono text-signal-green/60 uppercase tracking-widest border border-signal-green/20 bg-signal-green/5 px-3 py-1 rounded-full font-bold">
+                Contextly Protocol
+              </span>
+            </div>
+
+            <div className="space-y-10">
               <motion.div
-                key={card.tag}
-                className="card-outer"
-                initial={{ opacity: 0, x: 40 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: '-60px' }}
-                transition={{
-                  duration: 0.75,
-                  delay: i * 0.12,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
+                initial={{ x: 20, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                viewport={{ once: true }}
+                className="group"
               >
-                <div className="card-inner">
-                  {/* Tag */}
-                  <span className="card-tag">{card.tag}</span>
-
-                  {/* Title */}
-                  <h3 className="card-title">{card.title}</h3>
-
-                  {/* Body */}
-                  <p className="card-body">{card.body}</p>
-                </div>
+                <h4 className="text-white font-bold mb-3 flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-signal-green shadow-[0_0_10px_#34FFB3]" />
+                  Living Project Brief
+                </h4>
+                <p className="text-white/50 text-sm leading-relaxed">
+                  Contextly automatically maps your git history and merged decisions into a
+                  live knowledge graph. The docs write themselves.
+                </p>
               </motion.div>
-            ))}
+
+              <motion.div
+                initial={{ x: 20, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="group"
+              >
+                <h4 className="text-white font-bold mb-3 flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-signal-green shadow-[0_0_10px_#34FFB3]" />
+                  Zero Corrections
+                </h4>
+                <p className="text-white/50 text-sm leading-relaxed">
+                  Agents connect to our MCP server and "know" your architectural patterns instantly.
+                  Code isn't just generated; it's aligned.
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                whileInView={{ scale: 1, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="p-6 rounded-2xl bg-signal-green/5 border border-signal-green/20 font-mono text-[11px] text-signal-green/80 flex items-center gap-4"
+              >
+                <div className="w-1 h-1 rounded-full bg-signal-green animate-ping" />
+                <span>RAG Memory: auth_v2 patterns detected and synced.</span>
+              </motion.div>
+            </div>
           </div>
 
         </div>
       </div>
 
-      <style jsx>{`
-        /* ─── Section ────────────────────────────────────────── */
-        .problem-section {
-          padding: 128px 0 160px;
-          background: #0A0B0F;
-          border-top: 1px solid rgba(255, 255, 255, 0.04);
-          position: relative;
-        }
-
-        .container {
-          max-width: 1280px;
-          margin: 0 auto;
-          padding: 0 48px;
-        }
-
-        /* ─── Two-column grid ────────────────────────────────── */
-        .section-grid {
-          display: grid;
-          grid-template-columns: 2fr 3fr;
-          gap: 80px;
-          align-items: start;
-        }
-
-        /* ─── Left column (sticky) ───────────────────────────── */
-        .heading-col {
-          /* Allows inner sticky to work */
-        }
-
-        .heading-sticky {
-          position: sticky;
-          top: 120px;
-        }
-
-        /* Eyebrow pill */
-        .eyebrow-pill {
-          display: inline-flex;
-          align-items: center;
-          border-radius: 9999px;
-          padding: 4px 14px;
-          font-family: var(--font-mono, 'JetBrains Mono', monospace);
-          font-size: 10px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.2em;
-          color: #34FFB3;
-          border: 1px solid rgba(52, 255, 179, 0.2);
-          background: rgba(52, 255, 179, 0.06);
-          margin-bottom: 28px;
-        }
-
-        /* H2 */
-        .heading {
-          font-family: var(--font-inter, Inter, sans-serif);
-          font-size: clamp(2.4rem, 4vw, 3.4rem);
-          font-weight: 700;
-          line-height: 1.08;
-          letter-spacing: -0.03em;
-          margin: 0 0 24px;
-          background: linear-gradient(135deg, #ffffff 40%, rgba(255, 255, 255, 0.55) 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .heading-dim {
-          background: linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.2) 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        /* Sub paragraph */
-        .sub {
-          font-family: var(--font-mono, 'JetBrains Mono', monospace);
-          font-size: 0.8rem;
-          line-height: 1.7;
-          color: rgba(255, 255, 255, 0.38);
-          margin: 0;
-        }
-
-        /* ─── Right column (cards) ───────────────────────────── */
-        .cards-col {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-
-        /* ─── Double-bezel card ──────────────────────────────── */
-        .card-outer {
-          border-radius: 2rem;
-          background: rgba(255, 255, 255, 0.03);
-          /* ring-1 ring-white/8 */
-          box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-          padding: 8px; /* p-2 */
-          transition:
-            box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-            background 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .card-outer:hover {
-          box-shadow: 0 0 0 1px rgba(52, 255, 179, 0.25);
-          background: rgba(52, 255, 179, 0.03);
-        }
-
-        .card-inner {
-          border-radius: calc(2rem - 0.5rem);
-          background: #12141C;
-          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.07);
-          padding: 36px 36px 40px;
-          transition: background 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .card-outer:hover .card-inner {
-          background: rgba(18, 20, 28, 1);
-          /* subtle green tint blended in */
-          background: color-mix(in srgb, #12141C 98%, #34FFB3 2%);
-        }
-
-        /* Tag pill inside card */
-        .card-tag {
-          display: inline-flex;
-          align-items: center;
-          border-radius: 9999px;
-          padding: 3px 10px;
-          font-family: var(--font-mono, 'JetBrains Mono', monospace);
-          font-size: 9px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.18em;
-          color: #34FFB3;
-          border: 1px solid rgba(52, 255, 179, 0.2);
-          background: rgba(52, 255, 179, 0.06);
-          margin-bottom: 20px;
-        }
-
-        /* Card title */
-        .card-title {
-          font-family: var(--font-inter, Inter, sans-serif);
-          font-size: 1.4rem;
-          font-weight: 700;
-          color: #ffffff;
-          margin: 0 0 14px;
-          line-height: 1.25;
-          letter-spacing: -0.02em;
-        }
-
-        /* Card body */
-        .card-body {
-          font-family: var(--font-inter, Inter, sans-serif);
-          font-size: 1rem;
-          line-height: 1.7;
-          color: rgba(255, 255, 255, 0.5);
-          margin: 0;
-        }
-
-        /* ─── Mobile ─────────────────────────────────────────── */
-        @media (max-width: 768px) {
-          .problem-section {
-            padding: 96px 0 112px;
-          }
-
-          .container {
-            padding: 0 16px;
-          }
-
-          .section-grid {
-            grid-template-columns: 1fr;
-            gap: 52px;
-          }
-
-          .heading-sticky {
-            position: static;
-            top: auto;
-          }
-
-          .heading {
-            font-size: 2.2rem;
-          }
-
-          .card-inner {
-            padding: 28px 24px 32px;
-          }
-        }
-      `}</style>
+      {/* Background Grids */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
     </section>
   );
 };
