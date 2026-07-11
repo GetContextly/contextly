@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 const NAV_ITEMS = [
   { name: 'Projects', href: '/dashboard', icon: '◈' },
@@ -17,6 +19,30 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
+  const [hasGitHub, setHasGitHub] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function getSession() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
+      if (user) {
+        const githubIdentity = user.identities?.find(id => id.provider === 'github');
+        setHasGitHub(!!githubIdentity);
+      }
+    }
+    getSession();
+  }, []);
+
+  const handleLinkGitHub = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: window.location.origin + '/dashboard',
+      },
+    });
+  };
 
   return (
     <div className="flex h-screen bg-[#06070a] text-white font-sans selection:bg-signal-green/20 overflow-hidden">
@@ -66,12 +92,18 @@ export default function DashboardLayout({
 
         <div className="p-6 border-t border-white/5 bg-white/[0.01]">
           <div className="glass-dark rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-signal-green to-accent-blue flex items-center justify-center text-black font-bold text-sm">
-              JD
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-signal-green to-accent-blue flex items-center justify-center text-black font-bold text-sm overflow-hidden">
+              {user?.user_metadata?.avatar_url ? (
+                <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                user?.email?.substring(0, 2).toUpperCase() || '??'
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold truncate">John Dev</p>
-              <p className="text-[10px] font-mono text-white/30 truncate">PRO PLAN</p>
+              <p className="text-sm font-bold truncate">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}</p>
+              <p className="text-[10px] font-mono text-white/30 truncate">
+                {hasGitHub ? 'GITHUB LINKED' : 'GOOGLE AUTH'}
+              </p>
             </div>
           </div>
         </div>
@@ -79,6 +111,29 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
+        {/* GitHub Connection Prompt */}
+        <AnimatePresence>
+          {!hasGitHub && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-signal-green text-black px-10 py-3 flex items-center justify-between text-xs font-bold"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-2 w-2 rounded-full bg-black animate-pulse" />
+                <span>GITHUB_NOT_CONNECTED: Core features like git-sync and automated PR tracking require a GitHub link.</span>
+              </div>
+              <button
+                onClick={handleLinkGitHub}
+                className="bg-black text-white px-4 py-1.5 rounded-lg hover:bg-black/80 transition-all"
+              >
+                Connect Now
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Top Header */}
         <header className="h-20 border-b border-white/5 flex items-center justify-between px-10 bg-[#06070a]/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-4">

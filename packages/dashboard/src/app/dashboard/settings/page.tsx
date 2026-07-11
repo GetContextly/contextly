@@ -1,11 +1,42 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [hasGitHub, setHasGitHub] = useState(false);
   const DUMMY_KEY = 'ctx_7f1a2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z';
+
+  useEffect(() => {
+    async function getData() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (user) {
+        const gh = user.identities?.find(id => id.provider === 'github');
+        setHasGitHub(!!gh);
+      }
+    }
+    getData();
+  }, []);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(DUMMY_KEY);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleLinkGitHub = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: window.location.origin + '/dashboard/settings',
+      },
+    });
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(DUMMY_KEY);
@@ -31,12 +62,43 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-[10px] font-mono uppercase tracking-widest text-white/30 mb-2">Full Name</label>
-                <input type="text" defaultValue="John Dev" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-signal-green/50 outline-none transition-all" />
+                <input
+                  type="text"
+                  defaultValue={user?.user_metadata?.full_name || ''}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-signal-green/50 outline-none transition-all text-white/80"
+                />
               </div>
               <div>
                 <label className="block text-[10px] font-mono uppercase tracking-widest text-white/30 mb-2">Email Address</label>
-                <input type="email" defaultValue="john@contextly.dev" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-signal-green/50 outline-none transition-all" />
+                <input
+                  type="email"
+                  disabled
+                  defaultValue={user?.email || ''}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none transition-all text-white/30 cursor-not-allowed"
+                />
               </div>
+            </div>
+
+            <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold mb-1">GitHub Connection</h4>
+                <p className="text-xs text-white/30">
+                  {hasGitHub ? 'Your account is linked to GitHub.' : 'Connect GitHub to enable automated context syncing.'}
+                </p>
+              </div>
+              {hasGitHub ? (
+                <div className="flex items-center gap-2 text-signal-green text-[10px] font-mono font-bold uppercase tracking-widest">
+                  <span className="w-2 h-2 rounded-full bg-signal-green" />
+                  Connected
+                </div>
+              ) : (
+                <button
+                  onClick={handleLinkGitHub}
+                  className="px-6 py-2 rounded-xl bg-white text-black text-xs font-bold hover:bg-white/90 transition-all"
+                >
+                  Connect GitHub
+                </button>
+              )}
             </div>
           </div>
         </section>
