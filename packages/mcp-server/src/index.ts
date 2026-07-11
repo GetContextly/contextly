@@ -105,17 +105,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: "search_context",
-      description: "Search for specific code logic or architectural patterns using natural language (semantic search).",
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Natural language query (e.g. 'how is authentication handled?')" },
-        },
-        required: ["query"],
-      },
-    },
-    {
       name: "log_decision",
       description: "Log a significant architectural or project decision for future context. Call this when making an important choice.",
       inputSchema: {
@@ -135,31 +124,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   ],
 }));
 
-async function logAudit(projectId: string, action: string, entityType: string, metadata: any = {}) {
-  try {
-    await supabase.from("audit_logs").insert({
-      project_id: projectId,
-      action,
-      entity_type: entityType,
-      metadata: {
-        ...metadata,
-        agent: MCP_SERVER_INFO.NAME,
-        version: MCP_SERVER_INFO.VERSION
-      }
-    });
-  } catch (error) {
-    console.error("Failed to log audit:", error);
-  }
-}
-
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
     const projectId = await getProjectId();
-
-    // Log the tool call for auditing
-    await logAudit(projectId, `call_${name}`, "context", { arguments: args });
 
     switch (name) {
       case "get_context": {
@@ -288,35 +257,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         return { content: [{ type: "text", text: output }] };
-      }
-
-      case "search_context": {
-        const { query } = args as { query: string };
-
-        // Mock generating embedding for the query
-        const queryEmbedding = Array.from({ length: 1536 }, () => Math.random());
-
-        // Call the pgvector RPC
-        const { data: matches, error } = await supabase.rpc("match_embeddings", {
-          query_embedding: queryEmbedding,
-          match_threshold: 0.5,
-          match_count: 5,
-          p_project_id: projectId
-        });
-
-        if (error) throw error;
-
-        if (!matches || matches.length === 0) {
-          return { content: [{ type: "text", text: `No semantic matches found for "${query}".` }] };
-        }
-
-        const results = matches.map((m: any) =>
-          `[Similarity: ${Math.round(m.similarity * 100)}%] Path: ${m.metadata?.path}\nContent: ${m.content}...`
-        ).join("\n\n---\n\n");
-
-        return {
-          content: [{ type: "text", text: `Semantic Search Results for "${query}":\n\n${results}` }]
-        };
       }
 
       case "log_decision": {
