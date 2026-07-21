@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Project {
   id: string;
@@ -34,6 +34,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [changes, setChanges] = useState<Change[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [showMcpConfig, setShowMcpConfig] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -59,6 +60,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const copyMcpConfig = () => {
+    const config = JSON.stringify({
+      mcpToken: project?.mcp_token,
+      projectId: project?.id,
+    }, null, 2);
+    navigator.clipboard.writeText(config);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (loading) return (
@@ -106,11 +117,64 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                </svg>
              </button>
           </div>
-          <button className="px-6 py-3 rounded-xl bg-signal-green text-black font-bold text-sm shadow-[0_0_20px_rgba(52,255,179,0.2)] hover:scale-105 active:scale-95 transition-all">
+          <button
+            onClick={() => setShowMcpConfig(!showMcpConfig)}
+            className="px-6 py-3 rounded-xl bg-signal-green text-black font-bold text-sm shadow-[0_0_20px_rgba(52,255,179,0.2)] hover:scale-105 active:scale-95 transition-all"
+          >
             Configure Agent
           </button>
         </div>
       </div>
+
+      {/* MCP Config Panel */}
+      <AnimatePresence>
+        {showMcpConfig && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mb-8 overflow-hidden"
+          >
+            <div className="glass-dark rounded-[2rem] p-8 border-signal-green/20 bg-signal-green/[0.02]">
+              <h3 className="text-lg font-bold text-signal-green mb-4">MCP Configuration</h3>
+              <p className="text-sm text-white/40 mb-6">
+                Add this to your MCP client config (e.g. Claude Desktop, Cursor, OpenCode):
+              </p>
+              <div className="bg-black rounded-xl p-4 font-mono text-xs text-signal-green/80 overflow-x-auto">
+                <pre>{JSON.stringify({
+                  mcpServers: {
+                    contextly: {
+                      command: "npx",
+                      args: ["-y", "@contextly/mcp-server"],
+                      env: {
+                        CONTEXTLY_TOKEN: project.mcp_token,
+                        SUPABASE_URL: "your-supabase-url",
+                        SUPABASE_SERVICE_ROLE_KEY: "your-service-role-key"
+                      }
+                    }
+                  }
+                }, null, 2)}</pre>
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={copyMcpConfig}
+                  className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10 transition-all"
+                >
+                  {copied ? 'Copied!' : 'Copy Config'}
+                </button>
+                <a
+                  href="https://github.com/GetContextly/contextly#readme"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10 transition-all"
+                >
+                  View Docs
+                </a>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
@@ -142,13 +206,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <div className="lg:col-span-2 space-y-8">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-display font-bold">Architectural Memory</h2>
-            <button className="text-xs font-mono text-signal-green/60 hover:text-signal-green underline underline-offset-4">View All</button>
           </div>
 
           <div className="space-y-4">
             {decisions.length === 0 ? (
                <div className="p-12 text-center glass-dark rounded-[2rem] border-white/5 border-dashed border-2">
                  <p className="text-white/20 font-mono text-sm">No architectural decisions identified yet.</p>
+                 <p className="text-white/20 font-mono text-xs mt-2">Run "contextly sync" to ingest git history.</p>
                </div>
             ) : (
               decisions.map((d, i) => (
@@ -162,7 +226,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-3">
                        <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs">
-                         {d.source === 'git_commit' ? '⚡' : '✍'}
+                         {d.source === 'git_commit' ? '⚡' : d.source === 'pull_request' ? '🔀' : d.source === 'agent_logged' ? '🤖' : '✍'}
                        </span>
                        <h3 className="text-lg font-bold group-hover:text-signal-green transition-colors">{d.summary}</h3>
                     </div>
@@ -196,25 +260,25 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
              <div className="absolute left-[47px] top-12 bottom-12 w-px bg-white/5" />
 
              <div className="space-y-10 relative">
-               {changes.map((c, i) => (
-                 <div key={c.id} className="flex gap-6 items-start">
-                   <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 z-10">
-                     <span className="text-xs">◈</span>
-                   </div>
-                   <div className="min-w-0">
-                     <p className="text-xs font-bold text-white/80 truncate mb-1">{c.summary}</p>
-                     <div className="flex items-center gap-3">
-                       <span className="text-[9px] font-mono text-signal-green/40">{c.commit_sha?.substring(0, 7)}</span>
-                       <span className="text-[9px] font-mono text-white/20">{new Date(c.created_at).toLocaleDateString()}</span>
+               {changes.length === 0 ? (
+                 <p className="text-white/20 font-mono text-sm text-center py-8">No syncs yet.</p>
+               ) : (
+                 changes.map((c, i) => (
+                   <div key={c.id} className="flex gap-6 items-start">
+                     <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 z-10">
+                       <span className="text-xs">◈</span>
+                     </div>
+                     <div className="min-w-0">
+                       <p className="text-xs font-bold text-white/80 truncate mb-1">{c.summary}</p>
+                       <div className="flex items-center gap-3">
+                         <span className="text-[9px] font-mono text-signal-green/40">{c.commit_sha?.substring(0, 7)}</span>
+                         <span className="text-[9px] font-mono text-white/20">{new Date(c.created_at).toLocaleDateString()}</span>
+                       </div>
                      </div>
                    </div>
-                 </div>
-               ))}
+                 ))
+               )}
              </div>
-
-             <button className="w-full mt-10 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-[10px] font-mono uppercase tracking-widest text-white/40 transition-colors">
-               Load More Activity
-             </button>
            </div>
         </div>
       </div>
