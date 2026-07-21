@@ -14,6 +14,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const CONTEXTLY_TOKEN = process.env.CONTEXTLY_TOKEN || "";
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   process.exit(1);
@@ -24,7 +26,16 @@ if (!CONTEXTLY_TOKEN) {
   process.exit(1);
 }
 
-const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  db: { schema: 'public' },
+  global: {
+    fetch: (url, init) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeout));
+    },
+  },
+});
 
 let cachedProjectId: string | null = null;
 
@@ -374,6 +385,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function main() {
+  // Validate token at startup
+  try {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("mcp_token", CONTEXTLY_TOKEN)
+      .single();
+
+    if (error || !data) {
+      console.error("Invalid CONTEXTLY_TOKEN — no project found for this token.");
+      process.exit(1);
+    }
+
+    cachedProjectId = data.id;
+    console.error(`Contextly MCP Server connected to project: ${data.id.substring(0, 8)}...`);
+  } catch (err) {
+    console.error("Failed to connect to Supabase:", err);
+    process.exit(1);
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Contextly MCP Server running on stdio");
