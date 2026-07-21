@@ -2,41 +2,68 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 const UPDATES = [
   {
-    version: 'v0.1.2',
-    date: 'Jan 28, 2025',
-    title: 'Semantic Analyzer v2',
-    description: 'We rebuilt the CLI analyzer to better identify "Intent" from git diffs. It now ignores chores and typo fixes, focusing purely on architectural decisions.',
+    version: 'v0.5.0',
+    date: 'Jul 21, 2025',
+    title: 'Full Stack Rewrite',
+    description: 'Complete rewrite of CLI, MCP server, and dashboard. API contract alignment across all packages.',
     changes: [
-      'New heuristic engine for commit classification',
-      'Improved support for monorepos',
-      'Fixed a bug with SSH-based git remotes'
-    ]
+      'CLI: GitHub Device Flow auth, auto-login on init, improved heuristic analyzer',
+      'MCP Server: 5 contract-matching tools (get_context, explain_file, recent_changes, log_decision, get_project_brief)',
+      'Dashboard: Auth middleware, project management, admin panel, billing integration',
+      'Webhooks: Auto-sync on push, PR merge tracking, heuristic decision extraction',
+      'Shared: 37 dead files removed, type alignment with API contract',
+    ],
   },
   {
-    version: 'v0.1.1',
-    date: 'Jan 25, 2025',
-    title: 'MCP Protocol Stabilization',
-    description: 'Updates to our MCP server to align with the latest protocol specs from Anthropic.',
+    version: 'v0.4.0',
+    date: 'Jun 15, 2025',
+    title: 'GitHub Integration',
+    description: 'GitHub App installation webhooks, push event auto-sync, and PR merge tracking.',
     changes: [
-      'Added query_decisions tool',
-      'Implemented rate limiting for cloud MCP tokens',
-      'Better error handling for invalid sessions'
-    ]
+      'GitHub App installation webhook handler',
+      'Push event auto-sync with heuristic analysis',
+      'PR merge logging as architectural decisions',
+      'Installations page in dashboard',
+    ],
+  },
+  {
+    version: 'v0.3.0',
+    date: 'May 10, 2025',
+    title: 'Security Hardening',
+    description: 'Multi-layered defense: SQL injection prevention, rate limiting, audit logging.',
+    changes: [
+      'Database-level rate limiting via RPC',
+      'Input sanitization on all user-facing fields',
+      'Audit log table for security events',
+      'Webhook signature verification (HMAC-SHA256)',
+    ],
+  },
+  {
+    version: 'v0.2.0',
+    date: 'Apr 1, 2025',
+    title: 'MCP Protocol',
+    description: 'Initial MCP server implementation with core query tools.',
+    changes: [
+      'MCP server with get_context and log_decision tools',
+      'Supabase token-based authentication',
+      'Schema validation with Zod',
+    ],
   },
   {
     version: 'v0.1.0',
-    date: 'Jan 20, 2025',
+    date: 'Mar 1, 2025',
     title: 'Alpha Launch',
     description: 'The initial version of Contextly is now live in early access.',
     changes: [
       'CLI: init, sync, auth',
       'Cloud Dashboard: Project management',
-      'MCP Server: Core intelligence engine'
-    ]
-  }
+      'Landing page with waitlist',
+    ],
+  },
 ];
 
 export default function ChangelogPage() {
@@ -49,11 +76,10 @@ export default function ChangelogPage() {
         </header>
 
         <div className="relative">
-          {/* Vertical Line */}
           <div className="absolute left-[15px] top-0 bottom-0 w-[1px] bg-white/10" />
 
           <div className="space-y-20">
-            {UPDATES.map((update, i) => (
+            {UPDATES.map((update) => (
               <motion.div
                 key={update.version}
                 initial={{ opacity: 0, x: -20 }}
@@ -61,7 +87,6 @@ export default function ChangelogPage() {
                 viewport={{ once: true }}
                 className="relative pl-12"
               >
-                {/* Dot */}
                 <div className="absolute left-0 top-2 w-[31px] h-[31px] rounded-full bg-[#06070a] border-2 border-white/10 flex items-center justify-center">
                   <div className="w-2 h-2 rounded-full bg-signal-green shadow-[0_0_10px_#34FFB3]" />
                 </div>
@@ -77,7 +102,7 @@ export default function ChangelogPage() {
                 <p className="text-white/50 leading-relaxed mb-8 max-w-2xl">{update.description}</p>
 
                 <ul className="space-y-3">
-                  {update.changes.map(change => (
+                  {update.changes.map((change) => (
                     <li key={change} className="flex gap-3 text-sm text-white/40">
                       <span className="text-signal-green/40">•</span>
                       {change}
@@ -87,6 +112,17 @@ export default function ChangelogPage() {
               </motion.div>
             ))}
           </div>
+        </div>
+
+        <div className="mt-20 text-center">
+          <Link
+            href="https://github.com/GetContextly/contextly/releases"
+            className="text-signal-green text-sm hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View all releases on GitHub
+          </Link>
         </div>
       </div>
     </main>
