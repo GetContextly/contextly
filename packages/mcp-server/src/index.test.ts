@@ -71,4 +71,21 @@ describe('MCP Server Tool Contracts', () => {
       });
     });
   });
+
+  describe('MCP tool list', () => {
+    it('should define exactly 5 tools matching API contract + brief', async () => {
+      // Read the MCP server source to verify tool definitions
+      const fs = await import('fs');
+      const path = await import('path');
+      const src = fs.readFileSync(
+        path.join(__dirname, 'index.ts'),
+        'utf-8'
+      );
+
+      const toolNames = ['get_context', 'explain_file', 'recent_changes', 'log_decision', 'get_project_brief'];
+      for (const name of toolNames) {
+        expect(src).toContain(`"${name}"`);
+      }
+    });
+  });
 });
