@@ -156,6 +156,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["summary", "reasoning"],
       },
     },
+    {
+      name: "get_project_brief",
+      description:
+        "Get a compressed overview of the entire project — stats, key decisions, and recent activity. Use this for agent cold-start to quickly understand what this project is about.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+    },
   ],
 }));
 
@@ -310,6 +319,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           created_at: data.created_at,
         })
       );
+    }
+
+    // ─── get_project_brief ─────────────────────────────────────
+    case "get_project_brief": {
+      const [statsRes, recentDecisionsRes, recentChangesRes] = await Promise.all([
+        supabase
+          .from("project_stats")
+          .select("decision_count, change_count, last_sync_at")
+          .eq("project_id", projectId)
+          .single(),
+        supabase
+          .from("decisions")
+          .select("summary, source, created_at")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("changes")
+          .select("summary, commit_sha, created_at")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
+
+      const stats = statsRes.data;
+      const recentDecisions = recentDecisionsRes.data || [];
+      const recentChanges = recentChangesRes.data || [];
+
+      const brief = {
+        stats: {
+          total_decisions: stats?.decision_count || 0,
+          total_changes: stats?.change_count || 0,
+          last_sync: stats?.last_sync_at || null,
+        },
+        recent_decisions: recentDecisions.map((d) => ({
+          summary: d.summary,
+          source: d.source,
+          date: d.created_at,
+        })),
+        recent_changes: recentChanges.map((c) => ({
+          summary: c.summary,
+          sha: c.commit_sha?.substring(0, 7) || null,
+          date: c.created_at,
+        })),
+      };
+
+      return createMcpResponse(JSON.stringify(brief, null, 2));
     }
 
     default:
