@@ -7,7 +7,7 @@ export interface PlanLimits {
 }
 
 export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
-  free: { maxProjects: 1, maxDecisionsPerMonth: 50, hasGithubIntegration: false },
-  pro: { maxProjects: 5, maxDecisionsPerMonth: 500, hasGithubIntegration: true },
-  team: { maxProjects: 50, maxDecisionsPerMonth: 5000, hasGithubIntegration: true },
+  free: { maxProjects: 3, maxDecisionsPerMonth: 100, hasGithubIntegration: false },
+  pro: { maxProjects: 20, maxDecisionsPerMonth: 2000, hasGithubIntegration: true },
+  team: { maxProjects: 100, maxDecisionsPerMonth: 10000, hasGithubIntegration: true },
 };

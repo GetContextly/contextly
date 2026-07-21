@@ -57,7 +57,10 @@ const PLANS = [
 
 export default function PricingPage() {
   const handleCheckout = async (priceId?: string) => {
-    if (!priceId) return;
+    if (!priceId) {
+      window.location.href = '/login';
+      return;
+    }
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -128,7 +131,7 @@ export default function PricingPage() {
               </div>
 
               <button
-                onClick={() => handleCheckout(plan.priceId)}
+                onClick={() => plan.priceId ? handleCheckout(plan.priceId) : (window.location.href = '/login')}
                 className={`w-full py-4 rounded-2xl font-bold transition-all ${
                   plan.popular
                     ? 'bg-signal-green text-black hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(52,255,179,0.2)]'
