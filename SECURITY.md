@@ -1,5 +1,18 @@
 # Security Policy
 
+## Security Practices
+
+Contextly implements multiple layers of security:
+
+- **Database-level RLS**: All data access controlled by Row Level Security policies
+- **Rate limiting**: Database-level rate limiting via `is_rate_limited()` RPC
+- **Input sanitization**: All user inputs escaped before storage
+- **Webhook verification**: GitHub webhook signatures verified with HMAC-SHA256
+- **Security headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection on API routes
+- **Token isolation**: Per-project MCP tokens, no cross-project data access
+- **Auth middleware**: All dashboard routes protected by Supabase session validation
+- **Audit logging**: Security events tracked in audit_logs table
+
 ## Reporting a Vulnerability
 
 If you've found a security issue in Contextly, please report it privately rather than opening a public GitHub issue — this gives time to fix it before it's publicly known.

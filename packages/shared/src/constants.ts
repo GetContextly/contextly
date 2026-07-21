@@ -13,10 +13,10 @@ export const SOURCES = {
 
 export const MCP_SERVER_INFO = {
   NAME: 'contextly-server',
-  VERSION: '0.1.0',
+  VERSION: '1.0.0',
 };
 
 export const CLI_INFO = {
   NAME: 'contextly',
-  VERSION: '0.1.0',
+  VERSION: '1.0.0',
 };
