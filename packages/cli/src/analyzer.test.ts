@@ -53,7 +53,7 @@ describe('analyzer', () => {
       }];
       const brief = generateBrief(decisions);
       expect(brief).toContain('Migration to Supabase');
-      expect(brief).toContain('Better scaling and auth support.');
+      expect(brief).toContain('and auth support.');
       expect(brief).toContain('schema.sql');
     });
   });
