@@ -13,6 +13,10 @@ const NAV_ITEMS = [
   { name: 'Settings', href: '/dashboard/settings', icon: '⚙' },
 ];
 
+const ADMIN_ITEMS = [
+  { name: 'Admin', href: '/admin', icon: '🛡' },
+];
+
 export default function DashboardLayout({
   children,
 }: {
@@ -21,6 +25,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [hasGitHub, setHasGitHub] = useState<boolean>(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     async function getSession() {
@@ -30,6 +35,15 @@ export default function DashboardLayout({
       if (user) {
         const githubIdentity = user.identities?.find(id => id.provider === 'github');
         setHasGitHub(!!githubIdentity);
+
+        // Check admin status
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+
+        setIsAdmin(!!(profile as any)?.is_admin);
       }
     }
     getSession();
@@ -43,6 +57,8 @@ export default function DashboardLayout({
       },
     });
   };
+
+  const allItems = [...NAV_ITEMS, ...(isAdmin ? ADMIN_ITEMS : [])];
 
   return (
     <div className="flex h-screen bg-[#06070a] text-white font-sans selection:bg-signal-green/20 overflow-hidden">
@@ -63,7 +79,7 @@ export default function DashboardLayout({
           <div className="px-4 mb-4">
             <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/20">Menu</span>
           </div>
-          {NAV_ITEMS.map((item) => {
+          {allItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -94,6 +110,7 @@ export default function DashboardLayout({
           <div className="glass-dark rounded-2xl p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-signal-green to-accent-blue flex items-center justify-center text-black font-bold text-sm overflow-hidden">
               {user?.user_metadata?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 user?.email?.substring(0, 2).toUpperCase() || '??'
@@ -140,12 +157,22 @@ export default function DashboardLayout({
              {/* Breadcrumbs can go here */}
           </div>
           <div className="flex items-center gap-4">
-            <button className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-medium text-white/60 hover:text-white hover:bg-white/10 transition-all">
+            <a
+              href="https://github.com/GetContextly/contextly#readme"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-medium text-white/60 hover:text-white hover:bg-white/10 transition-all"
+            >
               Documentation
-            </button>
-            <button className="px-4 py-2 rounded-lg bg-signal-green text-black text-xs font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_15px_rgba(52,255,179,0.2)]">
+            </a>
+            <a
+              href="https://github.com/GetContextly/contextly/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-lg bg-signal-green text-black text-xs font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_15px_rgba(52,255,179,0.2)]"
+            >
               Support
-            </button>
+            </a>
           </div>
         </header>
 
