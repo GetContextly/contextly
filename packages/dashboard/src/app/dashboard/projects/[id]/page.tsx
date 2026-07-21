@@ -3,6 +3,7 @@
 import React, { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 
 interface Project {
   id: string;
@@ -29,12 +30,15 @@ interface Change {
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [changes, setChanges] = useState<Change[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showMcpConfig, setShowMcpConfig] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -280,6 +284,47 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                )}
              </div>
            </div>
+        </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="mt-16 pt-10 border-t border-red-500/10">
+        <div className="glass-dark rounded-[2rem] p-8 border-red-500/10 bg-red-500/[0.02]">
+          <div className="flex justify-between items-center">
+            <div>
+              <h4 className="text-sm font-bold mb-1 text-red-500/80">Delete Project</h4>
+              <p className="text-xs text-white/30">Permanently remove this project and all its data. This cannot be undone.</p>
+            </div>
+            {!showDeleteConfirm ? (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold hover:bg-red-500 hover:text-white transition-all"
+              >
+                Delete Project
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-red-500">Are you sure?</span>
+                <button
+                  onClick={async () => {
+                    setDeleting(true);
+                    await supabase.from('projects').delete().eq('id', id);
+                    router.push('/dashboard');
+                  }}
+                  disabled={deleting}
+                  className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-all disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Yes, Delete'}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 rounded-lg bg-white/5 text-white/60 text-xs font-bold hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

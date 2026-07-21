@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
+import { PLAN_LIMITS, type PlanType } from '@contextly/shared';
 
 export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
@@ -12,6 +13,8 @@ export default function SettingsPage() {
   const [hasGitHub, setHasGitHub] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [planType, setPlanType] = useState<PlanType>('free');
+  const [projectCount, setProjectCount] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -21,6 +24,22 @@ export default function SettingsPage() {
       if (user) {
         const gh = user.identities?.find(id => id.provider === 'github');
         setHasGitHub(!!gh);
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('plan_type')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          setPlanType((profile as any).plan_type || 'free');
+        }
+
+        const { count } = await supabase
+          .from('projects')
+          .select('id', { count: 'exact', head: true });
+
+        setProjectCount(count || 0);
       }
     }
     getData();
@@ -162,6 +181,51 @@ export default function SettingsPage() {
               <code className="block bg-black rounded-lg p-3 font-mono text-xs text-signal-green/80">
                 contextly login{'\n'}contextly init{'\n'}contextly sync
               </code>
+            </div>
+          </div>
+        </section>
+
+        {/* Plan & Usage */}
+        <section>
+          <h3 className="text-lg font-bold mb-6 flex items-center gap-3">
+            <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-sm">📊</span>
+            Plan & Usage
+          </h3>
+          <div className="glass-dark rounded-[2rem] p-8 border-white/5">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-widest text-white/30 mb-1">Current Plan</p>
+                <p className="text-2xl font-display font-bold capitalize">{planType}</p>
+              </div>
+              <a
+                href="/pricing"
+                className="px-6 py-2 rounded-xl bg-signal-green text-black text-xs font-bold hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                {planType === 'free' ? 'Upgrade' : 'Manage Plan'}
+              </a>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-xs text-white/40">Projects</span>
+                  <span className="text-xs font-mono text-white/60">{projectCount} / {PLAN_LIMITS[planType].maxProjects}</span>
+                </div>
+                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-signal-green rounded-full transition-all"
+                    style={{ width: `${Math.min((projectCount / PLAN_LIMITS[planType].maxProjects) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-xs text-white/40">Decisions / month</span>
+                  <span className="text-xs font-mono text-white/60">— / {PLAN_LIMITS[planType].maxDecisionsPerMonth}</span>
+                </div>
+                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-signal-green rounded-full" style={{ width: '0%' }} />
+                </div>
+              </div>
             </div>
           </div>
         </section>
