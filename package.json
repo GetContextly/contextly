@@ -5,7 +5,14 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run test -w packages/shared && npm run test -w packages/cli && npm run test -w packages/mcp-server",
+    "test:shared": "npm run test -w packages/shared",
+    "test:cli": "npm run test -w packages/cli",
+    "test:mcp": "npm run test -w packages/mcp-server",
+    "build": "npm run build -w packages/shared && npm run build -w packages/cli && npm run build -w packages/mcp-server",
+    "build:shared": "npm run build -w packages/shared",
+    "build:cli": "npm run build -w packages/cli",
+    "build:mcp": "npm run build -w packages/mcp-server",
     "supabase:login": "supabase login",
     "supabase:init": "supabase init",
     "supabase:migration": "supabase migration new",
