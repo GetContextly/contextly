@@ -36,7 +36,11 @@ export const clearSession = () => {
 
 export async function initiateDeviceFlow() {
   if (!GITHUB_CLIENT_ID) {
-    throw new Error('GITHUB_CLIENT_ID not set in environment.');
+    throw new Error(
+      'GITHUB_CLIENT_ID not set.\n' +
+      '  Set it in your environment: export GITHUB_CLIENT_ID=your_client_id\n' +
+      '  Or add it to a .env file in your project root.'
+    );
   }
   const response = await fetch('https://github.com/login/device/code', {
     method: 'POST',

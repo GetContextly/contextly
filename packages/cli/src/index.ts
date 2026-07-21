@@ -104,6 +104,24 @@ program
     console.log(chalk.green(`Logged out of ${session.user.login || session.user.email}.`));
   });
 
+// ─── whoami ────────────────────────────────────────────────────
+program
+  .command('whoami')
+  .description('Show current authenticated user')
+  .action(() => {
+    const session = getSession();
+    if (!session) {
+      console.log(chalk.yellow('Not logged in. Run "contextly login" first.'));
+      return;
+    }
+    console.log(chalk.bold.cyan('\nAuthenticated User'));
+    console.log(chalk.gray('─'.repeat(40)));
+    console.log(`  ${chalk.bold('Login:')}    ${chalk.white(session.user.login || 'N/A')}`);
+    console.log(`  ${chalk.bold('Email:')}    ${chalk.white(session.user.email || 'N/A')}`);
+    console.log(`  ${chalk.bold('User ID:')}  ${chalk.gray(session.user.id)}`);
+    console.log();
+  });
+
 // ─── init ─────────────────────────────────────────────────────
 program
   .command('init')
@@ -215,11 +233,18 @@ program
   .option('--force', 'Skip freshness check')
   .action(async (options) => {
     const session = getSession();
-    if (!session) return console.log(chalk.red('Not authenticated. Run "contextly login" first.'));
+    if (!session) {
+      console.log(chalk.red('Not authenticated.'));
+      console.log(chalk.gray('  Run "contextly login" to authenticate with GitHub.'));
+      process.exit(1);
+    }
 
     const configPath = path.join(process.cwd(), '.contextly', 'config.json');
-    if (!fs.existsSync(configPath))
-      return console.log(chalk.red('Project not initialized. Run "contextly init" first.'));
+    if (!fs.existsSync(configPath)) {
+      console.log(chalk.red('Project not initialized.'));
+      console.log(chalk.gray('  Run "contextly init" in your project directory first.'));
+      process.exit(1);
+    }
 
     const { projectId } = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     const commits = getRecentCommits(process.cwd(), parseInt(options.limit));
@@ -297,11 +322,18 @@ program
   .option('--reasoning <text>', 'Why this decision was made')
   .action(async (message, options) => {
     const session = getSession();
-    if (!session) return console.log(chalk.red('Not authenticated. Run "contextly login" first.'));
+    if (!session) {
+      console.log(chalk.red('Not authenticated.'));
+      console.log(chalk.gray('  Run "contextly login" to authenticate with GitHub.'));
+      process.exit(1);
+    }
 
     const configPath = path.join(process.cwd(), '.contextly', 'config.json');
-    if (!fs.existsSync(configPath))
-      return console.log(chalk.red('Project not initialized. Run "contextly init" first.'));
+    if (!fs.existsSync(configPath)) {
+      console.log(chalk.red('Project not initialized.'));
+      console.log(chalk.gray('  Run "contextly init" in your project directory first.'));
+      process.exit(1);
+    }
 
     const { projectId } = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 
