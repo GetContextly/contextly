@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
+import { NavbarVisibility } from "@/components/NavbarVisibility";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -46,7 +46,7 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} ${bricolage.variable} h-full antialiased scroll-smooth`}
     >
       <body className="min-h-full flex flex-col text-white">
-        <Navbar />
+        <NavbarVisibility />
         {children}
       </body>
     </html>
