@@ -2,6 +2,8 @@
 
 Exact, fixed input/output signatures for every MCP tool. This is the single source of truth for the agent-facing contract — the CLI, MCP server, and dashboard must all agree with this doc. If an implementation needs to differ, update this doc in the same commit, don't let them drift apart silently.
 
+> **Status:** All 4 MCP tools and all CLI commands are implemented and tested (as of July 2026).
+
 ---
 
 ## MCP Tools (agent-facing)
