@@ -9,10 +9,42 @@ const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+const ARCHITECTURAL_KEYWORDS = [
+  'refactor', 'architecture', 'schema', 'database', 'migration',
+  'protocol', 'api', 'security', 'auth', 'dependency', 'framework',
+  'performance', 'breaking', 'deprecat', 'redesign', 'restructur',
+  'config', 'deploy', 'ci/cd', 'testing', 'lint', 'typescript',
+];
+
+function extractDecisionsFromCommits(
+  projectId: string,
+  commits: Array<{ id: string; message: string; timestamp: string }>
+) {
+  const decisions: any[] = [];
+
+  for (const commit of commits) {
+    const msg = commit.message.toLowerCase();
+    const isArchitectural = ARCHITECTURAL_KEYWORDS.some(kw => msg.includes(kw));
+
+    if (isArchitectural) {
+      decisions.push({
+        project_id: projectId,
+        summary: sanitizeInput(commit.message.split('\n')[0].substring(0, 1000)),
+        reasoning: sanitizeInput(commit.message.substring(0, 5000)),
+        source: 'git_commit',
+        related_files: [],
+        created_at: commit.timestamp,
+      });
+    }
+  }
+
+  return decisions;
+}
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') || 'unknown';
 
-  // RATE LIMITING (CSEC-002) - 100 requests per minute for webhooks
+  // RATE LIMITING - 100 requests per minute
   const { data: isLimited, error: limitError } = await supabase.rpc('is_rate_limited', {
     p_key: `github_webhook_${ip}`,
     p_window_seconds: 60,
@@ -23,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
 
-  // PAYLOAD SIZE LIMIT (CSEC-004) - 5MB limit
+  // PAYLOAD SIZE LIMIT - 5MB
   const contentLength = parseInt(req.headers.get('content-length') || '0');
   if (contentLength > 5 * 1024 * 1024) {
     return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
@@ -66,16 +98,11 @@ interface GitHubCommit {
   id: string;
   message: string;
   timestamp: string;
-  author: {
-    name: string;
-    email: string;
-  };
+  author: { name: string; email: string; };
 }
 
 interface GitHubPushEvent {
-  repository: {
-    html_url: string;
-  };
+  repository: { html_url: string; };
   commits: GitHubCommit[];
 }
 
@@ -87,20 +114,14 @@ interface GitHubPullRequestEvent {
     body: string | null;
     merged: boolean;
   };
-  repository: {
-    html_url: string;
-  };
+  repository: { html_url: string; };
 }
 
 interface GitHubInstallationEvent {
   action: 'created' | 'deleted' | 'new_permissions_accepted' | 'suspend' | 'unsuspend';
   installation: {
     id: number;
-    account: {
-      id: number;
-      login: string;
-      type: string;
-    };
+    account: { id: number; login: string; type: string; };
     repository_selection: string;
   };
 }
@@ -127,7 +148,6 @@ async function handleInstallation(body: GitHubInstallationEvent) {
 
     if (error) throw error;
 
-    // Also clear installation_id from projects
     await supabase
       .from('projects')
       .update({ github_installation_id: null })
@@ -161,6 +181,13 @@ async function handlePush(body: GitHubPushEvent) {
 
   const { error: insertError } = await supabase.from('changes').insert(changes);
   if (insertError) throw insertError;
+
+  // Extract architectural decisions from commit messages
+  const decisions = extractDecisionsFromCommits(project.id, commits);
+  if (decisions.length > 0) {
+    const { error: decError } = await supabase.from('decisions').insert(decisions);
+    if (decError) console.error('Failed to insert decisions:', decError);
+  }
 }
 
 async function handlePullRequest(body: GitHubPullRequestEvent) {
@@ -179,13 +206,12 @@ async function handlePullRequest(body: GitHubPullRequestEvent) {
 
   if (projectError || !project) return;
 
-  // Log PR merge as a significant decision/change
   const { error: insertError } = await supabase.from('decisions').insert({
     project_id: project.id,
     summary: sanitizeInput(`Merged PR #${pr.number}: ${pr.title}`),
     reasoning: sanitizeInput(pr.body || 'No description provided.'),
     source: 'pull_request',
-    related_files: [], // Could be populated by fetching PR files via GitHub API
+    related_files: [],
   });
 
   if (insertError) throw insertError;
