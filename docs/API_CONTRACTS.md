@@ -108,6 +108,33 @@ Exact, fixed input/output signatures for every MCP tool. This is the single sour
 
 ---
 
+### `get_project_brief`
+
+**Input:**
+```typescript
+{}  // no parameters — project scoped from connection token
+```
+
+**Output:**
+```typescript
+{
+  stats: {
+    total_decisions: number;
+    total_changes: number;
+    last_updated: string | null;   // ISO 8601 timestamp
+  };
+  recent_decisions: Decision[];    // last 10, sorted most-recent-first
+  recent_changes: Change[];        // last 5, sorted most-recent-first
+}
+```
+
+**Behavior notes:**
+- Use this for agent cold-start — gives instant overview without multiple queries
+- Returns empty arrays and zero counts if the project has no data yet
+- No error responses — always succeeds if the token is valid
+
+---
+
 ## Shared Types Referenced Above
 
 ```typescript
