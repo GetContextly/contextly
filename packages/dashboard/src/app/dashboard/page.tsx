@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { randomBytes } from 'crypto';
 
 interface Project {
   id: string;
@@ -20,30 +21,61 @@ interface Project {
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newRepo, setNewRepo] = useState('');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    async function fetchProjects() {
-      // SCALING FIX: We now fetch stats from the pre-aggregated project_stats table
-      // This avoids expensive JOIN and COUNT operations on millions of rows.
-      const { data, error } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          stats:project_stats(decision_count, change_count, last_sync_at)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setProjects(data.map((p: any) => ({
-          ...p,
-          stats: p.stats // Postgres returns this as an object/array because of the link
-        })));
-      }
-      setLoading(false);
-    }
-
     fetchProjects();
   }, []);
+
+  async function fetchProjects() {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        stats:project_stats(decision_count, change_count, last_sync_at)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setProjects(data.map((p: any) => ({
+        ...p,
+        stats: p.stats
+      })));
+    }
+    setLoading(false);
+  }
+
+  async function handleCreateProject() {
+    if (!newName.trim()) return;
+    setCreating(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const mcpToken = 'ctx_' + Array.from(randomBytes(32)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        name: newName.trim(),
+        mcp_token: mcpToken,
+        owner_id: user.id,
+        github_repo_url: newRepo.trim() || null,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setProjects(prev => [{ ...data, stats: undefined }, ...prev]);
+      setShowCreate(false);
+      setNewName('');
+      setNewRepo('');
+    }
+    setCreating(false);
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -52,10 +84,76 @@ export default function ProjectsPage() {
           <h1 className="heading-m text-white mb-2">Projects</h1>
           <p className="text-white/40 text-sm font-mono uppercase tracking-widest italic">Scaled Infrastructure</p>
         </div>
-        <button className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 hover:border-signal-green/50 hover:bg-signal-green/5 text-sm font-bold transition-all group">
+        <button
+          onClick={() => setShowCreate(true)}
+          className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 hover:border-signal-green/50 hover:bg-signal-green/5 text-sm font-bold transition-all group"
+        >
           <span className="text-signal-green group-hover:mr-2 transition-all">+</span> Create New Project
         </button>
       </div>
+
+      {/* Create Project Modal */}
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowCreate(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="glass-dark rounded-[2rem] p-10 border-white/10 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-xl font-display font-bold mb-2">Create New Project</h2>
+              <p className="text-white/40 text-sm mb-8">Set up project memory for a new codebase.</p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-white/30 mb-2">Project Name</label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="my-project"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-signal-green/50 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-white/30 mb-2">GitHub Repository URL (optional)</label>
+                  <input
+                    type="url"
+                    value={newRepo}
+                    onChange={(e) => setNewRepo(e.target.value)}
+                    placeholder="https://github.com/user/repo"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-signal-green/50 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-8">
+                <button
+                  onClick={handleCreateProject}
+                  disabled={creating || !newName.trim()}
+                  className="flex-1 px-6 py-3 rounded-xl bg-signal-green text-black font-bold text-sm hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {creating ? 'Creating...' : 'Create Project'}
+                </button>
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-bold hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -76,9 +174,12 @@ export default function ProjectsPage() {
           <p className="text-white/40 mb-10 max-w-sm mx-auto">
             Ready for scale. Initialize your project memory in seconds.
           </p>
-          <code className="px-6 py-3 rounded-2xl bg-black border border-white/10 text-signal-green font-mono text-sm">
-            contextly init
-          </code>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-6 py-3 rounded-2xl bg-signal-green text-black font-bold text-sm hover:scale-[1.02] transition-all"
+          >
+            Create Your First Project
+          </button>
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
