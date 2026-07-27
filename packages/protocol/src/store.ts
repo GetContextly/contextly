@@ -426,6 +426,19 @@ export class Store {
   }
 
   // ---------------------------------------------------------------------------
+  // Raw active scan (for the Compiler — returns all active entries, no dedup)
+  // ---------------------------------------------------------------------------
+
+  getAllActiveForScope(scope: string): ContextEntry[] {
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM entries WHERE scope = ? AND status = 'active' ORDER BY timestamp DESC, rowid DESC",
+      )
+      .all(scope);
+    return (rows as Record<string, unknown>[]).map(rowToEntry);
+  }
+
+  // ---------------------------------------------------------------------------
   // Cycle detection (defense-in-depth)
   // ---------------------------------------------------------------------------
 
