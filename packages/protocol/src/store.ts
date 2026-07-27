@@ -8,7 +8,7 @@ import {
   type InsertEntry,
   type InsertResult,
   StoreError,
-} from "./types";
+} from "./types.js";
 
 export function computeId(scope: string, cid: string, message: string): string {
   const hash = createHash("sha256")
@@ -53,12 +53,14 @@ function rowToEntry(row: Record<string, unknown>): ContextEntry {
 
 export class Store {
   private db: Database.Database;
+  private auditSeq: number = 0;
 
   constructor(path: string = ":memory:") {
     this.db = new Database(path);
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
     this.migrate();
+    this.auditSeq = this.loadAuditSeq();
   }
 
   /** Expose the underlying database for sharing with ConflictResolver */
@@ -98,7 +100,55 @@ export class Store {
 
       CREATE INDEX IF NOT EXISTS idx_history
         ON entries(scope, cid, timestamp DESC);
+
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id          TEXT PRIMARY KEY,
+        seq         INTEGER NOT NULL,
+        type        TEXT NOT NULL,
+        scope       TEXT NOT NULL,
+        actor       TEXT NOT NULL,
+        details     TEXT NOT NULL DEFAULT '{}',
+        timestamp   TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_audit_type ON audit_log(type);
+      CREATE INDEX IF NOT EXISTS idx_audit_scope ON audit_log(scope);
+      CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_audit_scope_type ON audit_log(scope, type);
+      CREATE INDEX IF NOT EXISTS idx_audit_scope_time ON audit_log(scope, timestamp);
     `);
+  }
+
+  private loadAuditSeq(): number {
+    try {
+      const row = this.db
+        .prepare("SELECT MAX(seq) as max_seq FROM audit_log")
+        .get() as { max_seq: number | null };
+      return (row?.max_seq ?? 0) + 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  private recordAudit(
+    type: string,
+    scope: string,
+    actor: string,
+    details?: Record<string, unknown>,
+  ): void {
+    const seq = this.auditSeq++;
+    const hash = createHash("sha256")
+      .update(`audit:${type}:${scope}:${seq}:${isoNow()}`)
+      .digest("hex");
+    const id = `audit:${hash}`;
+    const now = isoNow();
+
+    this.db
+      .prepare(
+        `INSERT INTO audit_log (id, seq, type, scope, actor, details, timestamp)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(id, seq, type, scope, actor, JSON.stringify(details ?? {}), now);
   }
 
   // ---------------------------------------------------------------------------
@@ -182,6 +232,11 @@ export class Store {
         this.db
           .prepare("UPDATE entries SET status = 'superseded' WHERE id = ?")
           .run(supersedes);
+        this.recordAudit("entry.supersede", input.scope, input.author, {
+          entryId: id,
+          supersededId: supersedes,
+          cid: input.cid,
+        });
       }
 
       // 5. Build the result entry
@@ -200,6 +255,23 @@ export class Store {
 
       // 6. Conflict detection
       const conflict = this.detectConflict(entry);
+
+      this.recordAudit("entry.insert", input.scope, input.author, {
+        entryId: id,
+        cid: input.cid,
+        kind: input.kind,
+        message: input.message.substring(0, 100),
+        hadConflict: conflict !== null,
+        supersedes,
+      });
+
+      if (conflict) {
+        this.recordAudit("conflict.detected", input.scope, input.author, {
+          cid: conflict.cid,
+          existingEntryId: conflict.existingEntry.id,
+          incomingEntryId: conflict.incomingEntry.id,
+        });
+      }
 
       return { entry, conflict };
     });
@@ -325,7 +397,7 @@ export class Store {
    * — marks the loser as superseded without introducing a new active
    * entry that would itself conflict with the winner.
    */
-  supersedeEntry(id: string): void {
+  supersedeEntry(id: string, author?: string): void {
     const entry = this.getById(id);
     if (!entry) {
       throw new StoreError("SUPERSEDES_TARGET_NOT_FOUND", `Entry ${id} not found`);
@@ -337,6 +409,11 @@ export class Store {
       );
     }
     this.db.prepare("UPDATE entries SET status = 'superseded' WHERE id = ?").run(id);
+    this.recordAudit("entry.supersede", entry.scope, author ?? "system:resolver", {
+      entryId: id,
+      cid: entry.cid,
+      method: "direct",
+    });
   }
 
   archiveEntry(id: string): void {
@@ -357,9 +434,16 @@ export class Store {
         );
       }
     }
+    const entry = this.getById(id);
+    if (entry) {
+      this.recordAudit("entry.archive", entry.scope, "system:gc", {
+        entryId: id,
+        cid: entry.cid,
+      });
+    }
   }
 
-  tombstoneEntry(id: string): void {
+  tombstoneEntry(id: string, author?: string): void {
     const entry = this.getById(id);
     if (!entry) {
       throw new StoreError("SUPERSEDES_TARGET_NOT_FOUND", `Entry ${id} not found`);
@@ -375,6 +459,10 @@ export class Store {
         "UPDATE entries SET status = 'tombstoned', message = '' WHERE id = ?",
       )
       .run(id);
+    this.recordAudit("entry.tombstone", entry.scope, author ?? "system:admin", {
+      entryId: id,
+      cid: entry.cid,
+    });
   }
 
   // ---------------------------------------------------------------------------
