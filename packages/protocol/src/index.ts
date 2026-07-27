@@ -18,3 +18,32 @@ export {
   type DropRecord,
   type Provenance,
 } from "./compiler-types";
+export {
+  InMemoryRelay,
+  MergeEngine,
+  SyncEngine,
+  type CloudRelay,
+  type MergeResult,
+  type PendingEntry,
+  type PendingResult,
+  type PullOptions,
+  type PullResult,
+  type PushResult,
+  type RelayScopeState,
+  type SyncError,
+  type SyncState,
+  type SyncSummary,
+} from "./sync/index.js";
+export {
+  ConflictResolver,
+  authorityLevel,
+  type AggregatedConflict,
+  type AutoResolveResult,
+  type EscalationPolicy,
+  type FeedbackRecord,
+  type ManualResolveInput,
+  type ResolutionRecord,
+  type ResolutionRule,
+  type ResolutionRuleName,
+  type ResolverStats,
+} from "./resolver/index.js";

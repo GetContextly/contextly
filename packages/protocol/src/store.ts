@@ -61,6 +61,11 @@ export class Store {
     this.migrate();
   }
 
+  /** Expose the underlying database for sharing with ConflictResolver */
+  getDb(): Database.Database {
+    return this.db;
+  }
+
   close(): void {
     this.db.close();
   }
@@ -313,6 +318,26 @@ export class Store {
   // ---------------------------------------------------------------------------
   // Lifecycle transitions
   // ---------------------------------------------------------------------------
+
+  /**
+   * Directly set an entry's status to superseded without creating a
+   * referencing entry. Used by the ConflictResolver for auto-resolution
+   * — marks the loser as superseded without introducing a new active
+   * entry that would itself conflict with the winner.
+   */
+  supersedeEntry(id: string): void {
+    const entry = this.getById(id);
+    if (!entry) {
+      throw new StoreError("SUPERSEDES_TARGET_NOT_FOUND", `Entry ${id} not found`);
+    }
+    if (entry.status !== "active") {
+      throw new StoreError(
+        "INVALID_STATUS",
+        `Cannot supersede entry ${id} with status '${entry.status}' — only active entries can be superseded`,
+      );
+    }
+    this.db.prepare("UPDATE entries SET status = 'superseded' WHERE id = ?").run(id);
+  }
 
   archiveEntry(id: string): void {
     const result = this.db
