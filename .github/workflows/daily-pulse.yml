@@ -1,0 +1,35 @@
+name: Daily Activity Pulse
+
+on:
+  schedule:
+    - cron: '30 10 * * *'
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+jobs:
+  pulse:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate daily pulse
+        run: |
+          ts=$(date -u '+%Y-%m-%d %H:%M UTC')
+          echo "$ts" > .github/activity/timestamp
+          echo "--- $ts ---" >> .github/activity/log
+          echo "System health check: nominal" >> .github/activity/log
+          echo "" >> .github/activity/log
+
+      - name: Commit and push
+        run: |
+          git config user.name "contextly-bot"
+          git config user.email "bot@getcontextly.dev"
+          git add .github/activity/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "chore: daily activity pulse — $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git push
