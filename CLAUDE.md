@@ -4,14 +4,15 @@ Instructions for any AI coding agent (Claude Code, Cursor, etc.) working in this
 
 ## What This Project Is
 
-Contextly is a living project memory layer for developers using multiple AI coding agents. Full context lives in `/docs` — read the relevant doc before implementing anything non-trivial. Do not guess at architecture decisions that are already documented.
+Contextly is a protocol for AI agents to share memory in human-readable form. It is not a database, vector store, or RAG system. It is a lightweight protocol for passing context between agents as plain text, organized in a DAG.
 
 **Read these first, in this order, before touching code:**
-1. `docs/README.md` — overview and repo structure
-2. `docs/ARCHITECTURE.md` — system design and sync model
-3. `docs/DATA_MODEL.md` — database schema
-4. `docs/API_CONTRACTS.md` — exact MCP tool signatures (do not deviate from these without flagging it)
-5. Whichever other doc matches the package you're working in (e.g. `docs/AUTH.md` for auth work, `docs/GITHUB_INTEGRATION.md` for webhook work)
+1. `docs/PROTOCOL.md` — the Contextly Protocol specification (start here)
+2. `docs/README.md` — overview and repo structure
+3. `docs/ARCHITECTURE.md` — system design and sync model
+4. `docs/DATA_MODEL.md` — database schema
+5. `docs/API_CONTRACTS.md` — exact MCP tool signatures (do not deviate from these without flagging it)
+6. Whichever other doc matches the package you're working in (e.g. `docs/AUTH.md` for auth work, `docs/GITHUB_INTEGRATION.md` for webhook work)
 
 ## Monorepo Structure
 
