@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { createHash } from "node:crypto";
-import { Store, type Conflict, type ContextEntry } from "../index";
-import { Compiler } from "../compiler";
+import { Store, type Conflict, type ContextEntry } from "../index.js";
+import { Compiler } from "../compiler.js";
 import type {
   AggregatedConflict,
   AutoResolveResult,
@@ -11,7 +11,7 @@ import type {
   ResolutionRule,
   ResolutionRuleName,
   ResolverStats,
-} from "./types";
+} from "./types.js";
 
 function isoNow(): string {
   return new Date().toISOString();
@@ -168,7 +168,7 @@ export class ConflictResolver {
       // Mark each loser as superseded directly — no new entry needed.
       // The winner remains the sole active entry for this cid.
       for (const loser of losers) {
-        this.store.supersedeEntry(loser.id);
+        this.store.supersedeEntry(loser.id, `agent:resolver:${rule.name}`);
       }
 
 this.db
