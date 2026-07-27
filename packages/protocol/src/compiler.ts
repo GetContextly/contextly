@@ -45,8 +45,6 @@ interface DedupResult {
   provenances: Map<string, Provenance>;
 }
 
-const EMPTY_SCOPE_VERSION = new Map<string, number>();
-
 export class Compiler {
   private cache: Map<string, CacheEntry> = new Map();
   private scopeVersions: Map<string, number> = new Map();
@@ -131,7 +129,6 @@ export class Compiler {
 
     let inherited = 0;
     const overridden = new Set<string>();
-    const rootScopeIdx = ancestors.length - 1;
     for (const entry of allEntries) {
       const isFromParent = entry.scope !== scope;
       if (isFromParent) {
@@ -143,7 +140,7 @@ export class Compiler {
     }
 
     // ── Pass 2+3: Status filter (already active) + CID dedup ──────────
-    const dedup = this.deduplicateAndDetectConflicts(allEntries, ancestors, scope);
+    const dedup = this.deduplicateAndDetectConflicts(allEntries, scope);
 
     // ── Pass 5: Ordering ──────────────────────────────────────────────
     const sorted = [...dedup.survivors].sort((a, b) => {
@@ -155,8 +152,8 @@ export class Compiler {
 
     // ── Task relevance ranking (optional) ─────────────────────────────
     let ranked = sorted;
-    if (options.task) {
-      ranked = this.rankByRelevance(sorted, options.task);
+    if (task) {
+      ranked = this.rankByRelevance(sorted, task);
     }
 
     // ── Kind/cid filter ───────────────────────────────────────────────
@@ -210,7 +207,6 @@ export class Compiler {
 
   private deduplicateAndDetectConflicts(
     entries: ContextEntry[],
-    ancestors: string[],
     scope: string,
   ): DedupResult {
     const byCid = new Map<string, ContextEntry[]>();
