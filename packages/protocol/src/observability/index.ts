@@ -1,0 +1,13 @@
+export { AuditLog } from "./audit-log.js";
+export type { AuditEvent, AuditEventType } from "./types.js";
+export { DecisionTracer } from "./decision-tracer.js";
+export type { DecisionTrace, TraceStep, EnhancedProvenance } from "./types.js";
+export { AuditExporter } from "./audit-exporter.js";
+export type { TenantExportOptions } from "./types.js";
+export { MetricsCollector } from "./metrics.js";
+export type { MetricPoint, MetricsSnapshot } from "./types.js";
+export { AlertingEngine } from "./alerting.js";
+export type { AlertHandler } from "./alerting.js";
+export type { AlertRule, AlertSeverity, AlertSignal } from "./types.js";
+export { DebugTooling } from "./debug-tooling.js";
+export type { ExplainResult, WhyDroppedResult } from "./types.js";
