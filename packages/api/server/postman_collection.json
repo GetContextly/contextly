@@ -1,0 +1,250 @@
+{
+  "info": {
+    "name": "Contextly API",
+    "description": "Postman collection for the Contextly REST API v1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "contextly-api-collection"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "ctx_d3m0k3y12345678901234567890",
+      "type": "string"
+    },
+    {
+      "key": "scope",
+      "value": "project.myapp",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "X-API-Key",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health",
+        "header": []
+      }
+    },
+    {
+      "name": "OpenAPI Spec",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/openapi.json",
+        "header": []
+      }
+    },
+    {
+      "name": "Read Context",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/read_context",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"scope\": \"{{scope}}\",\n  \"budget\": 5000,\n  \"kind\": \"decision\",\n  \"cid\": \"auth.provider\",\n  \"task\": \"implement authentication\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Create Commitment",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/commit",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"scope\": \"{{scope}}\",\n  \"cid\": \"auth.provider\",\n  \"message\": \"Use Supabase for authentication with JWT tokens\",\n  \"kind\": \"decision\",\n  \"supersedes\": \"sha256:old-entry-id\",\n  \"parents\": [\"sha256:parent-entry-id\"]\n}"
+        }
+      }
+    },
+    {
+      "name": "Query Entries",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/query",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"scope\": \"{{scope}}\",\n  \"cid\": \"auth.provider\",\n  \"kind\": \"decision\",\n  \"status\": \"active\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Resolve Conflict",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/resolve",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"scope\": \"{{scope}}\",\n  \"cid\": \"auth.provider\",\n  \"message\": \"Use Supabase with RLS policies for authentication\",\n  \"kind\": \"decision\",\n  \"supersedingId\": \"sha256:conflicting-entry-id\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Fork Scope",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/fork",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"scope\": \"feature.new-auth\",\n  \"parentScope\": \"{{scope}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Merge Scope",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/merge",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\": \"feature.new-auth\",\n  \"target\": \"{{scope}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "List Conflicts",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/v1/scopes/{{scope}}/conflicts",
+        "header": []
+      }
+    },
+    {
+      "name": "Sync Scope",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/scopes/{{scope}}/sync",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pushOnly\": false,\n  \"pullOnly\": false\n}"
+        }
+      }
+    },
+    {
+      "name": "Scope History",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/v1/scopes/{{scope}}/history?limit=50&offset=0",
+        "header": []
+      }
+    },
+    {
+      "name": "Get Entry by ID",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/v1/entries/{{entryId}}",
+        "header": []
+      }
+    },
+    {
+      "name": "Create Webhook Subscription",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/webhooks",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"https://your-app.com/webhooks/contextly\",\n  \"events\": [\n    \"context.created\",\n    \"context.updated\",\n    \"context.deleted\",\n    \"conflict.detected\",\n    \"conflict.resolved\",\n    \"scope.forked\",\n    \"scope.merged\"\n  ],\n  \"auth\": {\n    \"secret\": \"your-webhook-secret\",\n    \"headers\": {}\n  },\n  \"retryConfig\": {\n    \"maxRetries\": 5,\n    \"baseDelayMs\": 1000,\n    \"maxDelayMs\": 60000,\n    \"backoffMultiplier\": 2\n  },\n  \"idempotencyWindowMs\": 3600000\n}"
+        }
+      }
+    },
+    {
+      "name": "List Webhook Subscriptions",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/v1/webhooks",
+        "header": []
+      }
+    },
+    {
+      "name": "Test Webhook",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/v1/webhooks/{{webhookId}}/test",
+        "header": []
+      }
+    },
+    {
+      "name": "Webhook Delivery History",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/v1/webhooks/{{webhookId}}/deliveries?limit=50",
+        "header": []
+      }
+    },
+    {
+      "name": "Delete Webhook",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/v1/webhooks/{{webhookId}}",
+        "header": []
+      }
+    }
+  ]
+}
