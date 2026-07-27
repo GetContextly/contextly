@@ -7,9 +7,9 @@ export {
   type InsertResult,
   StoreError,
   type StoreErrorCode,
-} from "./types";
-export { Store, computeId } from "./store";
-export { Compiler } from "./compiler";
+} from "./types.js";
+export { Store, computeId } from "./store.js";
+export { Compiler } from "./compiler.js";
 export {
   type CacheEntry,
   type CompiledContext,
@@ -17,7 +17,7 @@ export {
   type CompilerOptions,
   type DropRecord,
   type Provenance,
-} from "./compiler-types";
+} from "./compiler-types.js";
 export {
   InMemoryRelay,
   MergeEngine,
@@ -47,3 +47,27 @@ export {
   type ResolutionRuleName,
   type ResolverStats,
 } from "./resolver/index.js";
+export {
+  AuditLog,
+  AuditExporter,
+  AlertingEngine,
+  DecisionTracer,
+  DebugTooling,
+  MetricsCollector,
+} from "./observability/index.js";
+export type {
+  AuditEvent,
+  AuditEventType,
+  AlertRule,
+  AlertSignal,
+  AlertSeverity,
+  DecisionTrace,
+  ExplainResult,
+  EnhancedProvenance,
+  MetricPoint,
+  MetricsSnapshot,
+  TenantExportOptions,
+  TraceStep,
+  WhyDroppedResult,
+} from "./observability/types.js";
+export type { AlertHandler } from "./observability/alerting.js";
