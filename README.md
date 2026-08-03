@@ -6,7 +6,7 @@ Every AI coding tool — Claude Code, Cursor, Copilot, OpenCode — starts fresh
 
 ---
 
-## How It Works
+## How It Work
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
