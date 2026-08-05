@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "contextly"
+version = "1.0.0"
+description = "Contextly Agent SDK — persist decisions across AI agent sessions"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
