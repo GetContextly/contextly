@@ -1,0 +1,390 @@
+{
+  "info": {
+    "name": "Contextly API",
+    "description": "Complete API collection for Contextly protocol - AI agent memory and context sharing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "contextly",
+    "_postman_id": "contextly-api-collection"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "ctx_d3m0k3y12345678901234567890",
+      "type": "string"
+    },
+    {
+      "key": "scope",
+      "value": "project.myapp",
+      "type": "string"
+    },
+    {
+      "key": "cid",
+      "value": "auth.provider",
+      "type": "string"
+    },
+    {
+      "key": "entry_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "OpenAPI Spec",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/openapi.json",
+          "host": ["{{base_url}}"],
+          "path": ["openapi.json"]
+        }
+      }
+    },
+    {
+      "name": "Context Operations",
+      "item": [
+        {
+          "name": "Read Context",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"{{scope}}\",\n  \"budget\": 5000,\n  \"kind\": \"decision\",\n  \"cid\": \"{{cid}}\",\n  \"task\": \"implement authentication\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/read_context",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "read_context"]
+            }
+          }
+        },
+        {
+          "name": "Create Commitment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"{{scope}}\",\n  \"cid\": \"{{cid}}\",\n  \"message\": \"Use Supabase for authentication with JWT tokens\",\n  \"kind\": \"decision\",\n  \"supersedes\": \"\",\n  \"parents\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/commit",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "commit"]
+            }
+          }
+        },
+        {
+          "name": "Query Entries",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"{{scope}}\",\n  \"cid\": \"{{cid}}\",\n  \"kind\": \"decision\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/query",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "query"]
+            }
+          }
+        },
+        {
+          "name": "Resolve Conflict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"{{scope}}\",\n  \"cid\": \"{{cid}}\",\n  \"message\": \"Use Supabase with RLS for authentication\",\n  \"kind\": \"decision\",\n  \"supersedingId\": \"{{entry_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/resolve",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "resolve"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Entry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/entries/{{entry_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "entries", "{{entry_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Scope History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/scopes/{{scope}}/history?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "scopes", "{{scope}}", "history"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Conflicts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/scopes/{{scope}}/conflicts",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "scopes", "{{scope}}", "conflicts"]
+            }
+          }
+        },
+        {
+          "name": "Sync Scope",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pushOnly\": false,\n  \"pullOnly\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/scopes/{{scope}}/sync",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "scopes", "{{scope}}", "sync"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scope Operations",
+      "item": [
+        {
+          "name": "Fork Scope",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"feature.new-auth\",\n  \"parentScope\": \"{{scope}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/fork",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "fork"]
+            }
+          }
+        },
+        {
+          "name": "Merge Scope",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"feature.new-auth\",\n  \"target\": \"{{scope}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/merge",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "merge"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhook Management",
+      "item": [
+        {
+          "name": "Create Webhook Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://your-webhook-endpoint.com/contextly\",\n  \"events\": [\"context.created\", \"conflict.detected\", \"conflict.resolved\", \"scope.forked\", \"scope.merged\"],\n  \"auth\": {\n    \"secret\": \"your_webhook_secret\",\n    \"headers\": {\n      \"X-Custom-Header\": \"custom-value\"\n    }\n  },\n  \"retryConfig\": {\n    \"maxRetries\": 5,\n    \"baseDelayMs\": 1000,\n    \"maxDelayMs\": 60000,\n    \"backoffMultiplier\": 2\n  },\n  \"idempotencyWindowMs\": 3600000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "webhooks"]
+            }
+          }
+        },
+        {
+          "name": "List Webhook Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "webhooks"]
+            }
+          }
+        },
+        {
+          "name": "Test Webhook",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks/{{webhook_id}}/test",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "webhooks", "{{webhook_id}}", "test"]
+            }
+          }
+        },
+        {
+          "name": "Get Webhook Deliveries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks/{{webhook_id}}/deliveries?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "webhooks", "{{webhook_id}}", "deliveries"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Webhook",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks/{{webhook_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "webhooks", "{{webhook_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documentation",
+      "item": [
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/docs",
+              "host": ["{{base_url}}"],
+              "path": ["docs"]
+            }
+          }
+        },
+        {
+          "name": "OpenAPI Spec JSON",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/openapi.json",
+              "host": ["{{base_url}}"],
+              "path": ["openapi.json"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "protocolProfileBehavior": {}
+}

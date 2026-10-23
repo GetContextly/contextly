@@ -1,0 +1,29 @@
+{
+  "name": "@contextly/sdk",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@contextly/mcp-server": "*",
+    "@contextly/protocol": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
+  },
+  "license": "Apache-2.0"
+}

@@ -2,415 +2,501 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
-  ErrorCode,
   ListToolsRequestSchema,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { MCP_SERVER_INFO, parseSince, createMcpResponse } from "@contextly/shared";
-import { z } from "zod";
+import { Compiler, Store, type CompiledContext, type Conflict, type ContextEntry, type InsertEntry, computeId } from "@contextly/protocol";
+import { parseToken, validateScope, verifyTokenIntegrity, type TokenPayload } from "./auth.js";
+import { RateLimiter } from "./rate-limiter.js";
+import { contextlyErrorToMcpError, type ContextlyError } from "./errors.js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "";
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const CONTEXTLY_TOKEN = process.env.CONTEXTLY_TOKEN || "";
-
-const REQUEST_TIMEOUT_MS = 30_000;
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(1);
+interface McpServerConfig {
+  token: string;
+  dbPath?: string;
+  validTokens?: string[];
+  rateLimits?: Record<string, { windowMs: number; maxRequests: number }>;
 }
 
-if (!CONTEXTLY_TOKEN) {
-  console.error("Missing CONTEXTLY_TOKEN — set it in your .contextly/mcp.json or environment");
-  process.exit(1);
+function parseScopeAncestors(scope: string): string[] {
+  const parts = scope.split(".");
+  const ancestors: string[] = [];
+  for (let i = 1; i <= parts.length; i++) {
+    ancestors.push(parts.slice(0, i).join("."));
+  }
+  return ancestors;
 }
 
-const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  db: { schema: 'public' },
-  global: {
-    fetch: (url, init) => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeout));
-    },
-  },
-});
+export function createMcpServer(config: McpServerConfig) {
+  const tokenPayload = parseToken(config.token);
+  const validTokens = new Set(config.validTokens ?? [config.token]);
 
-let cachedProjectId: string | null = null;
+  const store = new Store(config.dbPath ?? ":memory:");
+  const compiler = new Compiler(store);
+  const rateLimiter = new RateLimiter(config.rateLimits);
 
-async function getProjectId(): Promise<string> {
-  if (cachedProjectId) return cachedProjectId;
-
-  const { data, error } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("mcp_token", CONTEXTLY_TOKEN)
-    .single();
-
-  if (error || !data) {
-    throw new McpError(ErrorCode.InvalidRequest, "Invalid token — no project found.");
+  function authenticate(token: string, scope: string, permission: "read" | "write" | "resolve" | "fork" | "merge"): TokenPayload {
+    const payload = verifyTokenIntegrity(token, validTokens);
+    validateScope(payload.scope, scope, permission, payload.permissions);
+    return payload;
   }
 
-  cachedProjectId = data.id;
-  return data.id;
-}
+  const server = new Server(
+    { name: "contextly-mcp", version: "2.0.0" },
+    { capabilities: { tools: {} } },
+  );
 
-async function enforceRateLimit(projectId: string) {
-  const { data: allowed, error } = await supabase.rpc("check_rate_limit", {
-    p_key: `mcp_${projectId}`,
-    p_limit: 100,
-    p_window: "1 minute",
-  });
-
-  if (error) console.error("Rate limit check failed:", error.message);
-  if (!allowed) {
-    throw new McpError(ErrorCode.InvalidRequest, "Rate limit exceeded. Try again shortly.");
-  }
-}
-
-// --- Zod schemas matching API_CONTRACTS.md exactly ---
-
-const GetContextSchema = z.object({
-  topic: z.string().describe("Topic to search for, e.g. 'authentication', 'database schema'"),
-});
-
-const ExplainFileSchema = z.object({
-  path: z.string().describe("Relative file path, e.g. 'src/auth/login.ts'"),
-});
-
-const RecentChangesSchema = z.object({
-  since: z.string().describe('ISO 8601 timestamp or shorthand like "1h", "1d", "7d"'),
-});
-
-const LogDecisionSchema = z.object({
-  summary: z.string().describe("Plain-English one-liner describing the decision"),
-  reasoning: z.string().describe('The "why" behind the decision'),
-  related_files: z.array(z.string()).optional().describe("Optional list of related file paths"),
-});
-
-// --- Server setup ---
-
-const server = new Server(
-  { name: MCP_SERVER_INFO.NAME, version: MCP_SERVER_INFO.VERSION },
-  { capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    {
-      name: "get_context",
-      description:
-        "Query project memory by topic. Returns a plain-English summary and related architectural decisions. Use this when you need to understand why something was built a certain way.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          topic: {
-            type: "string",
-            description: 'Topic to search for, e.g. "authentication", "database schema", "deployment"',
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [
+      {
+        name: "read_context",
+        description:
+          "Read compiled context for a scope. Returns the active set (rules first, then decisions, then observations) with provenance. Honors token budget — compresses observations before dropping, never drops rules silently. Every dropped entry is logged.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            scope: { type: "string", description: "Dotted-path scope, e.g. project.myapp" },
+            token: { type: "string", description: "Authentication token for this scope" },
+            budget: { type: "number", description: "Token budget (default: unlimited)", default: 0 },
+            kind: { type: "string", description: "Filter by kind: rule, decision, or observation", enum: ["rule", "decision", "observation"] },
+            cid: { type: "string", description: "Filter by cid or cid prefix (e.g. auth.*)" },
+            task: { type: "string", description: "Task description for relevance ranking" },
           },
+          required: ["scope", "token"],
         },
-        required: ["topic"],
       },
-    },
-    {
-      name: "explain_file",
-      description:
-        "Get context about a specific file — what decisions led to it, why it exists. Returns whether the file is tracked in the project.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          path: {
-            type: "string",
-            description: 'Relative file path, e.g. "src/auth/login.ts"',
+      {
+        name: "commit",
+        description:
+          "Record a new context entry. Idempotent — same cid + message + scope produces the same id and is silently accepted on retry. If a conflict is detected (same cid, different message, no supersession), both entries remain active and the conflict is returned.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            scope: { type: "string", description: "Dotted-path scope" },
+            token: { type: "string", description: "Authentication token" },
+            cid: { type: "string", description: "Dotted-path cid, e.g. auth.provider" },
+            message: { type: "string", description: "The memory — plain text, one sentence" },
+            kind: { type: "string", description: "Entry kind", enum: ["decision", "rule", "observation"] },
+            supersedes: { type: "string", description: "Id of entry this supersedes, if resolving a conflict" },
           },
+          required: ["scope", "token", "cid", "message", "kind"],
         },
-        required: ["path"],
       },
-    },
-    {
-      name: "recent_changes",
-      description:
-        "See what changed recently in the project. Returns changes and decisions from a time window. Use before making modifications to understand current state.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          since: {
-            type: "string",
-            description: 'ISO 8601 timestamp or relative shorthand like "1h", "1d", "7d"',
+      {
+        name: "query",
+        description:
+          "Raw entry lookup, bypassing compilation. Use for tooling and debugging. Returns exact matches without inheritance or conflict resolution.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            scope: { type: "string", description: "Dotted-path scope" },
+            token: { type: "string", description: "Authentication token" },
+            cid: { type: "string", description: "Filter by exact cid" },
+            kind: { type: "string", description: "Filter by kind", enum: ["rule", "decision", "observation"] },
+            status: { type: "string", description: "Filter by status", enum: ["active", "superseded", "archived", "tombstoned"] },
+            id: { type: "string", description: "Lookup by exact entry id" },
           },
+          required: ["scope", "token"],
         },
-        required: ["since"],
       },
-    },
-    {
-      name: "log_decision",
-      description:
-        "Record an architectural decision you've made while working on the project. This persists context for future agents and sessions.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          summary: {
-            type: "string",
-            description: "Plain-English one-liner describing the decision",
+      {
+        name: "resolve",
+        description:
+          "Resolve a conflict by superseding one of the conflicting entries. Writes a new entry with supersedes set to the entry you want to replace. Equivalent to commit() with supersedes set.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            scope: { type: "string", description: "Dotted-path scope" },
+            token: { type: "string", description: "Authentication token" },
+            cid: { type: "string", description: "The cid with the conflict" },
+            message: { type: "string", description: "The resolution message" },
+            kind: { type: "string", description: "Entry kind", enum: ["decision", "rule", "observation"] },
+            supersedingId: { type: "string", description: "Id of the entry to supersede (the one being replaced)" },
           },
-          reasoning: {
-            type: "string",
-            description: "The why behind the decision",
-          },
-          related_files: {
-            type: "array",
-            items: { type: "string" },
-            description: "Optional list of related file paths",
-          },
+          required: ["scope", "token", "cid", "message", "kind", "supersedingId"],
         },
-        required: ["summary", "reasoning"],
       },
-    },
-    {
-      name: "get_project_brief",
-      description:
-        "Get a compressed overview of the entire project — stats, key decisions, and recent activity. Use this for agent cold-start to quickly understand what this project is about.",
-      inputSchema: {
-        type: "object",
-        properties: {},
+      {
+        name: "fork",
+        description:
+          "Create a new scope as a child of an existing one. The child inherits the parent's active set. No entries are copied — the fork maintains a reference to the parent. Only succeeds if parent scope exists.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            scope: { type: "string", description: "Name for the new child scope" },
+            parentScope: { type: "string", description: "Existing parent scope to inherit from" },
+            token: { type: "string", description: "Authentication token (must have access to parentScope)" },
+          },
+          required: ["scope", "parentScope", "token"],
+        },
       },
-    },
-  ],
-}));
+      {
+        name: "merge",
+        description:
+          "Merge entries from source scope into target scope. Conflicts are returned — they must be resolved before the merge can complete. Adopts all non-conflicting entries atomically.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            source: { type: "string", description: "Source scope to merge from" },
+            target: { type: "string", description: "Target scope to merge into" },
+            token: { type: "string", description: "Authentication token (must have access to both scopes)" },
+          },
+          required: ["source", "target", "token"],
+        },
+      },
+    ],
+  }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  const projectId = await getProjectId();
-  await enforceRateLimit(projectId);
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params as { name: string; arguments: Record<string, unknown> };
 
-  switch (name) {
-    // ─── get_context ───────────────────────────────────────────
-    case "get_context": {
-      const { topic } = GetContextSchema.parse(args);
-
-      const { data: decisions } = await supabase
-        .from("decisions")
-        .select("id, project_id, summary, reasoning, source, related_files, created_at")
-        .eq("project_id", projectId)
-        .or(`summary.ilike.%${topic}%,reasoning.ilike.%${topic}%`)
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      const list = decisions || [];
-
-      if (list.length === 0) {
-        return createMcpResponse(
-          JSON.stringify({
-            summary: "No recorded context for this topic yet.",
-            related_decisions: [],
-            last_updated: new Date().toISOString(),
-          })
+    try {
+      switch (name) {
+        case "read_context":
+          return handleReadContext(args);
+        case "commit":
+          return handleCommit(args);
+        case "query":
+          return handleQuery(args);
+        case "resolve":
+          return handleResolve(args);
+        case "fork":
+          return handleFork(args);
+        case "merge":
+          return handleMerge(args);
+        default:
+          throw new McpError(-32601, `Unknown tool: ${name}`);
+      }
+    } catch (err) {
+      if (err instanceof McpError) throw err;
+      const ctxErr = err as ContextlyError;
+      if (ctxErr.code) {
+        throw new McpError(
+          contextlyErrorToMcpError(ctxErr).code,
+          JSON.stringify(ctxErr),
         );
       }
-
-      const summary = `Found ${list.length} decision(s) related to "${topic}":\n\n` +
-        list.map((d) => `- ${d.summary}`).join("\n");
-
-      return createMcpResponse(
-        JSON.stringify({
-          summary,
-          related_decisions: list,
-          last_updated: new Date().toISOString(),
-        })
-      );
+      throw new McpError(-32603, JSON.stringify({ code: "INTERNAL_ERROR", message: (err as Error).message }));
     }
+  });
 
-    // ─── explain_file ──────────────────────────────────────────
-    case "explain_file": {
-      const { path } = ExplainFileSchema.parse(args);
+  // ─── Tool handlers ─────────────────────────────────────────────────
 
-      const { data: decisions } = await supabase
-        .from("decisions")
-        .select("id, project_id, summary, reasoning, source, related_files, created_at")
-        .eq("project_id", projectId)
-        .contains("related_files", [path])
-        .order("created_at", { ascending: false })
-        .limit(5);
+  function handleReadContext(args: Record<string, unknown>) {
+    const { token, scope } = args as { token: string; scope: string };
+    authenticate(token, scope, "read");
 
-      const list = decisions || [];
+    const budget = typeof args.budget === "number" ? args.budget : undefined;
+    const kind = typeof args.kind === "string" ? args.kind as "rule" | "decision" | "observation" : undefined;
+    const cid = typeof args.cid === "string" ? args.cid : undefined;
+    const task = typeof args.task === "string" ? args.task : undefined;
 
-      // Check if file has ever appeared in any change record
-      const { data: changeMatch } = await supabase
-        .from("changes")
-        .select("id")
-        .eq("project_id", projectId)
-        .ilike("summary", `%${path}%`)
-        .limit(1);
+    const compiled = compiler.compile({ scope, budget, kind, cid, task });
+    const payload = formatCompiledForMcp(compiled);
 
-      const fileExists = list.length > 0 || (changeMatch && changeMatch.length > 0);
-
-      let summary: string;
-      if (list.length > 0) {
-        summary = `Decisions involving "${path}":\n\n` +
-          list.map((d) => `- ${d.summary}`).join("\n");
-      } else {
-        summary = "No decisions recorded for this file.";
-      }
-
-      return createMcpResponse(
-        JSON.stringify({
-          summary,
-          related_decisions: list,
-          file_exists_in_repo: fileExists,
-        })
-      );
-    }
-
-    // ─── recent_changes ────────────────────────────────────────
-    case "recent_changes": {
-      const { since } = RecentChangesSchema.parse(args);
-      const sinceIso = parseSince(since);
-
-      const [changesRes, decisionsRes] = await Promise.all([
-        supabase
-          .from("changes")
-          .select("id, project_id, summary, commit_sha, created_at")
-          .eq("project_id", projectId)
-          .gte("created_at", sinceIso)
-          .order("created_at", { ascending: false })
-          .limit(20),
-        supabase
-          .from("decisions")
-          .select("id, project_id, summary, reasoning, source, related_files, created_at")
-          .eq("project_id", projectId)
-          .gte("created_at", sinceIso)
-          .order("created_at", { ascending: false })
-          .limit(20),
-      ]);
-
-      const changes = changesRes.data || [];
-      const decisions = decisionsRes.data || [];
-      const truncated = changes.length === 20;
-
-      const response: Record<string, unknown> = {
-        changes,
-        decisions,
-      };
-
-      if (truncated) {
-        response._note = "Changes truncated at 20 entries. Use a narrower time window for more precision.";
-      }
-
-      return createMcpResponse(JSON.stringify(response));
-    }
-
-    // ─── log_decision ──────────────────────────────────────────
-    case "log_decision": {
-      const parsed = LogDecisionSchema.parse(args);
-
-      if (!parsed.summary.trim() || !parsed.reasoning.trim()) {
-        throw new McpError(ErrorCode.InvalidRequest, "Both summary and reasoning are required and cannot be empty.");
-      }
-
-      const { data, error } = await supabase
-        .from("decisions")
-        .insert({
-          project_id: projectId,
-          summary: parsed.summary.trim(),
-          reasoning: parsed.reasoning.trim(),
-          source: "agent_logged",
-          related_files: parsed.related_files || [],
-        })
-        .select("id, created_at")
-        .single();
-
-      if (error) {
-        throw new McpError(ErrorCode.InternalError, `Failed to log decision: ${error.message}`);
-      }
-
-      return createMcpResponse(
-        JSON.stringify({
-          id: data.id,
-          created_at: data.created_at,
-        })
-      );
-    }
-
-    // ─── get_project_brief ─────────────────────────────────────
-    case "get_project_brief": {
-      const [statsRes, recentDecisionsRes, recentChangesRes] = await Promise.all([
-        supabase
-          .from("project_stats")
-          .select("decision_count, change_count, last_sync_at")
-          .eq("project_id", projectId)
-          .single(),
-        supabase
-          .from("decisions")
-          .select("summary, source, created_at")
-          .eq("project_id", projectId)
-          .order("created_at", { ascending: false })
-          .limit(10),
-        supabase
-          .from("changes")
-          .select("summary, commit_sha, created_at")
-          .eq("project_id", projectId)
-          .order("created_at", { ascending: false })
-          .limit(5),
-      ]);
-
-      const stats = statsRes.data;
-      const recentDecisions = recentDecisionsRes.data || [];
-      const recentChanges = recentChangesRes.data || [];
-
-      const brief = {
-        stats: {
-          total_decisions: stats?.decision_count || 0,
-          total_changes: stats?.change_count || 0,
-          last_sync: stats?.last_sync_at || null,
-        },
-        recent_decisions: recentDecisions.map((d) => ({
-          summary: d.summary,
-          source: d.source,
-          date: d.created_at,
-        })),
-        recent_changes: recentChanges.map((c) => ({
-          summary: c.summary,
-          sha: c.commit_sha?.substring(0, 7) || null,
-          date: c.created_at,
-        })),
-      };
-
-      return createMcpResponse(JSON.stringify(brief, null, 2));
-    }
-
-    default:
-      throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+    return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
   }
-});
+
+  function handleCommit(args: Record<string, unknown>) {
+    const { token, scope, cid, message, kind } = args as {
+      token: string; scope: string; cid: string; message: string; kind: string;
+    };
+    authenticate(token, scope, "write");
+
+    if (!message.trim()) {
+      return errorResponse("VALIDATION_ERROR", "Message cannot be empty");
+    }
+
+    const insertEntry: InsertEntry = {
+      scope,
+      cid,
+      message: message.trim(),
+      kind: kind as "decision" | "rule" | "observation",
+      author: token,
+      supersedes: typeof args.supersedes === "string" ? args.supersedes : undefined,
+    };
+
+    // Idempotency: check if this exact entry already exists
+    const existingId = computeId(scope, cid, message.trim());
+    const existing = store.getById(existingId);
+    if (existing) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: existing.id, status: "already_exists", entry: existing }, null, 2) }] };
+    }
+
+    // Track scope version for cache invalidation
+    compiler.invalidateScope(scope);
+    const result = store.insert(insertEntry);
+
+    const response: Record<string, unknown> = {
+      id: result.entry.id,
+      status: "committed",
+      entry: result.entry,
+    };
+
+    if (result.conflict) {
+      response.status = "conflict";
+      response.conflict = {
+        cid: result.conflict.cid,
+        existingMessage: result.conflict.existingEntry.message,
+        existingId: result.conflict.existingEntry.id,
+        incomingMessage: result.conflict.incomingEntry.message,
+        incomingId: result.conflict.incomingEntry.id,
+      };
+    }
+
+    return { content: [{ type: "text", text: JSON.stringify(response, null, 2) }] };
+  }
+
+  function handleQuery(args: Record<string, unknown>) {
+    const { token, scope } = args as { token: string; scope: string };
+    authenticate(token, scope, "read");
+
+    const id = typeof args.id === "string" ? args.id : undefined;
+    const cid = typeof args.cid === "string" ? args.cid : undefined;
+    const kind = typeof args.kind === "string" ? args.kind : undefined;
+    const status = typeof args.status === "string" ? args.status : undefined;
+
+    if (id) {
+      const entry = store.getById(id);
+      if (!entry) {
+        return errorResponse("SCOPE_NOT_FOUND", `Entry ${id} not found`);
+      }
+      return { content: [{ type: "text", text: JSON.stringify({ entries: [entry] }, null, 2) }] };
+    }
+
+    if (cid) {
+      const entries = store.getByScopeAndCid(scope, cid);
+      return { content: [{ type: "text", text: JSON.stringify({ entries }, null, 2) }] };
+    }
+
+    let entries = store.getAllActiveForScope(scope);
+
+    if (kind) {
+      entries = entries.filter((e) => e.kind === kind);
+    }
+    if (status) {
+      entries = entries.map((e) => e).filter((e) => e.status === status);
+    }
+
+    return { content: [{ type: "text", text: JSON.stringify({ entries }, null, 2) }] };
+  }
+
+  function handleResolve(args: Record<string, unknown>) {
+    const { token, scope, cid, message, kind, supersedingId } = args as {
+      token: string; scope: string; cid: string; message: string; kind: string; supersedingId: string;
+    };
+    authenticate(token, scope, "resolve");
+
+    const target = store.getById(supersedingId);
+    if (!target) {
+      return errorResponse("SUPERSEDES_TARGET_NOT_FOUND", `Entry ${supersedingId} not found`);
+    }
+
+    const insertEntry: InsertEntry = {
+      scope,
+      cid,
+      message: message.trim(),
+      kind: kind as "decision" | "rule" | "observation",
+      author: token,
+      supersedes: supersedingId,
+    };
+
+    compiler.invalidateScope(scope);
+    const result = store.insert(insertEntry);
+
+    const response: Record<string, unknown> = {
+      id: result.entry.id,
+      status: "resolved",
+      supersededId: supersedingId,
+      entry: result.entry,
+    };
+
+    if (result.conflict) {
+      response.status = "conflict_persists";
+      response.conflict = {
+        cid: result.conflict.cid,
+        existingId: result.conflict.existingEntry.id,
+        incomingId: result.conflict.incomingEntry.id,
+      };
+    }
+
+    return { content: [{ type: "text", text: JSON.stringify(response, null, 2) }] };
+  }
+
+  function handleFork(args: Record<string, unknown>) {
+    const { scope, parentScope, token } = args as { scope: string; parentScope: string; token: string };
+    authenticate(token, parentScope, "fork");
+
+    if (!store.scopeExists(parentScope)) {
+      return errorResponse("SCOPE_NOT_FOUND", `Parent scope "${parentScope}" does not exist`);
+    }
+
+    if (store.scopeExists(scope)) {
+      return errorResponse("VALIDATION_ERROR", `Scope "${scope}" already exists`);
+    }
+
+    // Fork by writing a sentinel entry — the Compiler handles inheritance
+    store.insert({
+      scope,
+      cid: "_fork",
+      message: `Forked from ${parentScope}`,
+      kind: "observation",
+      author: token,
+    });
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          scope,
+          parentScope,
+          status: "forked",
+          inheritedEntries: compiler.compile({ scope }).stats.inherited,
+        }, null, 2),
+      }],
+    };
+  }
+
+  function handleMerge(args: Record<string, unknown>) {
+    const { source, target, token } = args as { source: string; target: string; token: string };
+    authenticate(token, source, "read");
+    authenticate(token, target, "merge");
+
+    if (!store.scopeExists(source)) {
+      return errorResponse("SCOPE_NOT_FOUND", `Source scope "${source}" does not exist`);
+    }
+    if (!store.scopeExists(target)) {
+      return errorResponse("SCOPE_NOT_FOUND", `Target scope "${target}" does not exist`);
+    }
+
+    const sourceActive = store.getAllActiveForScope(source);
+    const targetActive = store.getAllActiveForScope(target);
+
+    const adopted: ContextEntry[] = [];
+    const conflicts: Conflict[] = [];
+    const rejected: ContextEntry[] = [];
+
+    for (const entry of sourceActive) {
+      const targetEntry = store.getByScopeAndCid(target, entry.cid);
+      if (targetEntry.length === 0) {
+        // No entry in target — adopt (re-insert with new scope)
+        const result = store.insert({
+          cid: entry.cid,
+          message: entry.message,
+          kind: entry.kind,
+          scope: target,
+          author: entry.author,
+          supersedes: undefined,
+        });
+        adopted.push(result.entry);
+      } else if (targetEntry.length === 1 && targetEntry[0].message === entry.message) {
+        // Same message — skip (duplicate)
+        rejected.push(entry);
+      } else if (targetEntry.length >= 1 && targetEntry[0].message !== entry.message) {
+        // Different message — conflict
+        conflicts.push({
+          scope: target,
+          cid: entry.cid,
+          existingEntry: targetEntry[0],
+          incomingEntry: entry,
+        });
+      } else {
+        // Multiple target entries or error
+        conflicts.push({
+          scope: target,
+          cid: entry.cid,
+          existingEntry: targetEntry[0],
+          incomingEntry: entry,
+        });
+      }
+    }
+
+    if (conflicts.length > 0) {
+      return errorResponse("MERGE_CONFLICT", `Merge has ${conflicts.length} conflict(s) that must be resolved first`, {
+        adopted: adopted.length,
+        conflicts: conflicts.map((c) => ({
+          cid: c.cid,
+          existingMessage: c.existingEntry.message,
+          incomingMessage: c.incomingEntry.message,
+        })),
+        rejected: rejected.length,
+      });
+    }
+
+    compiler.invalidateScope(target);
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "merged",
+          adopted: adopted.length,
+          conflicts: 0,
+          rejected: rejected.length,
+          entries: adopted.map((e) => ({ id: e.id, cid: e.cid, message: e.message, kind: e.kind })),
+        }, null, 2),
+      }],
+    };
+  }
+
+  // ─── Helpers ───────────────────────────────────────────────────────
+
+  function formatCompiledForMcp(compiled: CompiledContext) {
+    return {
+      entries: compiled.entries.map((ce) => ({
+        id: ce.entry.id,
+        cid: ce.entry.cid,
+        message: ce.entry.message,
+        kind: ce.entry.kind,
+        timestamp: ce.entry.timestamp,
+        provenance: ce.provenance,
+      })),
+      conflicts: compiled.conflicts.map((c) => ({
+        cid: c.cid,
+        existingMessage: c.existingEntry.message,
+        existingId: c.existingEntry.id,
+        incomingMessage: c.incomingEntry.message,
+        incomingId: c.incomingEntry.id,
+      })),
+      stats: compiled.stats,
+      dropped: compiled.dropped,
+    };
+  }
+
+  function errorResponse(code: string, message: string, details?: Record<string, unknown>) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({ error: { code, message, ...details } }, null, 2),
+      }],
+      isError: true,
+    };
+  }
+
+  return { server, store, compiler, rateLimiter, start };
+
+  async function start() {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+  }
+}
+
+// ─── CLI entry point ────────────────────────────────────────────────
 
 async function main() {
-  // Validate token at startup
-  try {
-    const { data, error } = await supabase
-      .from("projects")
-      .select("id")
-      .eq("mcp_token", CONTEXTLY_TOKEN)
-      .single();
-
-    if (error || !data) {
-      console.error("Invalid CONTEXTLY_TOKEN — no project found for this token.");
-      process.exit(1);
-    }
-
-    cachedProjectId = data.id;
-    console.error(`Contextly MCP Server connected to project: ${data.id.substring(0, 8)}...`);
-  } catch (err) {
-    console.error("Failed to connect to Supabase:", err);
+  const token = process.env.CONTEXTLY_TOKEN;
+  if (!token) {
+    console.error("CONTEXTLY_TOKEN environment variable required");
     process.exit(1);
   }
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Contextly MCP Server running on stdio");
+  const dbPath = process.env.CONTEXTLY_DB_PATH;
+  const { start } = createMcpServer({ token, dbPath });
+  await start();
 }
 
-main().catch((err) => {
-  console.error("Fatal:", err);
-  process.exit(1);
-});
+if (process.argv[1]?.endsWith("index.js") || process.argv[1]?.endsWith("mcp-server")) {
+  main().catch((err) => {
+    console.error("Fatal:", err);
+    process.exit(1);
+  });
+}

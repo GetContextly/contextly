@@ -1,0 +1,11 @@
+{
+  "name": "example-persistent-agent",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@contextly/sdk": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
